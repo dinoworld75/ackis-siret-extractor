@@ -1,0 +1,80 @@
+version: '3.8'
+
+services:
+  siret-extractor:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: siret-extractor:1.0.0
+    container_name: siret-extractor
+    ports:
+      - "8000:8000"
+    environment:
+      # API Configuration
+      - API_HOST=0.0.0.0
+      - API_PORT=8000
+      - API_WORKERS=4
+      - DEBUG=False
+
+      # Scraper Configuration
+      - MAX_CONCURRENT_WORKERS=10
+      - REQUEST_TIMEOUT=30000
+      - NAVIGATION_TIMEOUT=60000
+      - PAGE_LOAD_TIMEOUT=30000
+
+      # Browser Configuration
+      - HEADLESS=True
+      - BROWSER_TYPE=chromium
+
+      # Proxy Configuration (optional)
+      - PROXY_ROTATION_ENABLED=False
+      - PROXY_LIST=
+
+      # Rate Limiting
+      - RATE_LIMIT_REQUESTS=100
+      - RATE_LIMIT_WINDOW=60
+
+      # Retry Configuration
+      - MAX_RETRIES=3
+      - RETRY_DELAY=2
+
+    # Use .env file for environment variables (optional)
+    # env_file:
+    #   - .env
+
+    # Restart policy
+    restart: unless-stopped
+
+    # Health check
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          cpus: '1.0'
+          memory: 1G
+
+    # Logging configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        tag: "siret-extractor"
+
+    # Network
+    networks:
+      - siret-network
+
+networks:
+  siret-network:
+    driver: bridge

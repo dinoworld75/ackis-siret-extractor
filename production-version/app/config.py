@@ -64,10 +64,11 @@ class Settings(BaseSettings):
 settings = Settings()
 
 
-# Extraction Patterns
-SIRET_PATTERN = r'\b\d{14}\b'
-SIREN_PATTERN = r'\b\d{9}\b'
-TVA_PATTERN = r'\bFR\s*\d{11}\b'
+# Extraction Patterns (allow spaces/nbsp between digit groups)
+# Examples: "423 757 418 00011" or "423757418" or "423&nbsp;757&nbsp;418"
+SIRET_PATTERN = r'\b(?:\d{3}\s*){2}\d{3}\s*\d{5}\b'
+SIREN_PATTERN = r'\b(?:\d{3}\s*){3}\b'
+TVA_PATTERN = r'\bFR\s*\d{2}\s*\d{9}\b'
 
 # Validation
 SIRET_LENGTH = 14
@@ -137,3 +138,17 @@ LEGAL_PATHS = [
 
 # Maximum number of legal pages to check per site
 MAX_LEGAL_PAGES_TO_CHECK = 5
+
+# Blacklist of hosting/agency SIRENs to exclude
+BLACKLIST_SIRENS = [
+    "797876562",  # Gestixi (site builder)
+    "423646512",  # OVH (hosting)
+    "537407926",  # Gandi (domain/hosting)
+    "443061841",  # O2Switch (hosting)
+    "424761419",  # Ionos (1&1, hosting)
+    "518518460",  # Wix (site builder)
+    "814776647",  # Shopify (e-commerce platform)
+    "890176703",  # WordPress.com (Automattic)
+    "433115904",  # Adobe (Creative Cloud)
+    "732829320",  # Hostinger
+]

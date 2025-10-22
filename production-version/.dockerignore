@@ -1,0 +1,71 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environments
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+*.cover
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Documentation (we include it in the image)
+# README.md
+# API_DOCUMENTATION.md
+# DEPLOYMENT.md
+
+# Test files
+test*.py
+*_test.py
+tests/
+test-*.txt
+test-*.log
+mass-test-*.json
+
+# Debug files
+debug_*.py
+*.html
+extract_urls.py
+mass_test.py
+
+# Docker
+Dockerfile
+docker-compose.yml
+.dockerignore
