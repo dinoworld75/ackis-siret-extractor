@@ -1,0 +1,11 @@
+url;final_url;status;sirets;sirens;tvas;found_on_page;legal_pages_checked;error;duration_ms;worker_id;headless
+http://www.frontignanthb.fr;http://www.frontignanthb.fr;error;;;;;0;object NoneType can't be used in 'await' expression;2604;0;True
+https://hapik.fr/;https://hapik.fr/;error;;;;;0;object NoneType can't be used in 'await' expression;2630;2;True
+https://altaigroup.travel/;https://www.altaigroup.travel/;error;;;;;0;object NoneType can't be used in 'await' expression;2715;1;True
+https://www.codeogroup.com/;https://www.codeogroup.com/;error;;;;;0;object NoneType can't be used in 'await' expression;2454;0;True
+http://www.opal-ch.com;http://www.opal-ch.com;error;;;;;0;object NoneType can't be used in 'await' expression;2561;2;True
+http://www.groupe-sogepar-hotels.com;http://www.groupe-sogepar-hotels.com;error;;;;;0;object NoneType can't be used in 'await' expression;2665;1;True
+http://www.nakama.tech;https://nakama.tech/;error;;;;;0;object NoneType can't be used in 'await' expression;2542;0;True
+http://www.happydemics.com;https://happydemics.com/;error;;;;;0;object NoneType can't be used in 'await' expression;2694;2;True
+https://www.safer-aura.fr/;https://safer-aura.fr/;error;;;;;0;object NoneType can't be used in 'await' expression;2707;1;True
+https://www.nipro-group.com/;https://www.nipro-group.com/;error;;;;;0;object NoneType can't be used in 'await' expression;2413;0;True

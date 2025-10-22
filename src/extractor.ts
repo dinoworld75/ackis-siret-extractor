@@ -11,7 +11,7 @@ import {chromium, Browser, Page, BrowserContext} from 'playwright'
 const CONFIG = {
   inputCsv: './test-website-723.csv',
   outputCsv: './results.csv',
-  maxSites: 30,
+  maxSites: 10,  // TEST: 10 sites pour baseline
   timeout: 20000,  // Augmenté à 20s pour les SPAs
   delayBetweenRequests: 2500,
   maxLegalPagesToCheck: 5,
