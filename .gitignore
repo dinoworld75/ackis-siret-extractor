@@ -1,0 +1,31 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# Build outputs
+dist/
+build/
+*.tsbuildinfo
+
+# Test files
+test-fix.csv
+test-fix.sh
+results-fix-test.csv
+
+# Results
+results.csv
+
+# Temp files
+*.log
+*.tmp
+.~lock.*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
