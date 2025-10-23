@@ -1,0 +1,14 @@
+node_modules
+dist
+.git
+.env
+.env.local
+*.log
+coverage
+.vite
+.vitest
+playwright-report
+test-results
+.playwright-mcp
+PHASE7_SUMMARY.md
+test-data.csv

@@ -1,12 +1,12 @@
 version: '3.8'
 
 services:
-  siret-extractor:
+  backend:
     build:
       context: .
       dockerfile: Dockerfile
-    image: siret-extractor:1.0.0
-    container_name: siret-extractor
+    image: siret-extractor-backend:1.0.0
+    container_name: siret-extractor-backend
     ports:
       - "8000:8000"
     environment:
@@ -38,10 +38,6 @@ services:
       - MAX_RETRIES=3
       - RETRY_DELAY=2
 
-    # Use .env file for environment variables (optional)
-    # env_file:
-    #   - .env
-
     # Restart policy
     restart: unless-stopped
 
@@ -69,9 +65,38 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
-        tag: "siret-extractor"
+        tag: "siret-extractor-backend"
 
     # Network
+    networks:
+      - siret-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    image: siret-extractor-frontend:1.0.0
+    container_name: siret-extractor-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      - VITE_API_BASE_URL=http://localhost:8000
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        tag: "siret-extractor-frontend"
     networks:
       - siret-network
 

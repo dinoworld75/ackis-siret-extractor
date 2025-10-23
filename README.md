@@ -1,29 +1,49 @@
-# SIRET Extractor API
+# SIRET Extractor - Full Stack Application
 
 [![Python](https://img.shields.io/badge/Python-3.9%2B-blue.svg)](https://www.python.org/downloads/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.109.0-009688.svg)](https://fastapi.tiangolo.com/)
+[![React](https://img.shields.io/badge/React-19.2.0-61dafb.svg)](https://react.dev/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.9.3-3178c6.svg)](https://www.typescriptlang.org/)
 [![Playwright](https://img.shields.io/badge/Playwright-1.41.0-45ba4b.svg)](https://playwright.dev/)
+[![Docker](https://img.shields.io/badge/Docker-Ready-2496ed.svg)](https://www.docker.com/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Code Style](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
-Production-ready FastAPI service for extracting SIRET, SIREN, and TVA intracommunautaire numbers from French company websites using intelligent web scraping with Playwright.
+Complete full-stack application for extracting SIRET, SIREN, and TVA intracommunautaire numbers from French company websites. Features a modern React frontend with TypeScript and a production-ready FastAPI backend with intelligent web scraping.
 
 ## Description
 
-SIRET Extractor is a robust REST API that automatically discovers and validates French business identifiers (SIRET, SIREN, TVA) from company websites. Built with modern async Python, it intelligently navigates websites, checks legal pages, and validates all extracted identifiers using the Luhn algorithm.
+SIRET Extractor is a complete full-stack application that automatically discovers and validates French business identifiers (SIRET, SIREN, TVA) from company websites. The application consists of:
+
+- **Frontend**: Modern React 19 web application with TypeScript, featuring drag-and-drop file upload, real-time processing status, and comprehensive history management
+- **Backend**: Production-ready FastAPI service with intelligent web scraping using Playwright, Luhn validation, and concurrent batch processing
+- **Docker**: Complete containerization with Docker Compose for easy deployment
 
 **Key Capabilities:**
-- Extracts SIRET (14-digit establishment identifier)
-- Extracts SIREN (9-digit company identifier)
-- Extracts TVA intracommunautaire (EU VAT number)
+- Upload CSV/XLSX files with company URLs
+- Select and prioritize URL columns with drag-and-drop interface
+- Process URLs in batches (up to 100 per batch)
+- Real-time progress tracking with detailed status updates
+- Download enriched files with extracted identifiers
+- Store processing history locally (IndexedDB)
 - Smart legal page discovery (mentions légales, CGV, CGU, etc.)
 - Anti-bot detection and handling
-- Concurrent batch processing with worker pools
-- Production-ready with comprehensive error handling
+- Luhn algorithm validation for all identifiers
+- Production-ready Docker deployment
 
 ## Features
 
-### Core Features
+### Frontend Features
+- **File Upload** - Drag-and-drop CSV/XLSX file upload with validation (max 10MB)
+- **Column Selection** - Interactive column selector with drag-and-drop prioritization
+- **Real-time Processing** - Live progress tracking with batch status and percentage
+- **Results Display** - Comprehensive table view with filtering and sorting
+- **File Export** - Download enriched CSV/XLSX files with extracted identifiers
+- **History Management** - Local storage of processing history using IndexedDB
+- **Responsive Design** - Mobile-friendly interface with Tailwind CSS
+- **Accessibility** - WCAG 2.1 AA compliant with keyboard navigation
+- **Modern Stack** - React 19, TypeScript 5.9, Vite 7, TanStack Query
+
+### Backend Features
 - **Intelligent Web Scraping** - Multi-tier search strategy (homepage → legal paths → footer links)
 - **Luhn Validation** - All SIRET/SIREN numbers validated with Luhn algorithm + La Poste special case
 - **Async Architecture** - Built on FastAPI and asyncio for high performance
@@ -42,22 +62,47 @@ SIRET Extractor is a robust REST API that automatically discovers and validates 
 - **CORS Support** - Configurable cross-origin resource sharing
 - **Error Handling** - Graceful degradation with detailed error messages
 
-### Production Features
-- **Docker Support** - Multi-stage Dockerfile with optimized image size
-- **Docker Compose** - Complete orchestration with health checks
-- **Environment Config** - 12-factor app configuration via .env
-- **Proxy Rotation** - Built-in proxy manager (optional)
-- **Resource Management** - Automatic browser context cleanup
+### Deployment Features
+- **Docker Support** - Multi-stage Dockerfiles for both frontend and backend
+- **Docker Compose** - Complete orchestration with health checks and networking
+- **Nginx Reverse Proxy** - Frontend serves static files and proxies API requests
+- **Environment Config** - 12-factor app configuration via .env files
+- **Coolify Ready** - Pre-configured for deployment to Coolify platform
+- **Resource Management** - Automatic browser context cleanup and memory limits
 - **Graceful Shutdown** - Proper cleanup on SIGTERM/SIGINT
 
 ## Quick Start
 
-Get up and running in under 5 minutes:
+### Docker (Recommended)
+
+Get the full application running in under 5 minutes:
 
 ```bash
-# Clone and navigate
-cd /path/to/production-version
+# Clone the repository
+git clone <repository-url>
+cd ackis-siret-extractor-1
 
+# Build Docker images
+./build-docker.sh
+
+# Start services
+docker-compose up -d
+
+# Check status
+docker-compose ps
+```
+
+Access the application:
+- **Frontend**: http://localhost
+- **Backend API**: http://localhost:8000
+- **API Documentation**: http://localhost:8000/docs
+
+### Manual Development Setup
+
+For local development without Docker:
+
+**Backend:**
+```bash
 # Create virtual environment
 python3 -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
@@ -70,10 +115,24 @@ playwright install chromium
 cp .env.example .env
 
 # Run
-uvicorn app.main:app --reload
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-Visit http://localhost:8000/docs for interactive API documentation.
+**Frontend:**
+```bash
+cd frontend
+
+# Install dependencies
+pnpm install
+
+# Configure
+cp .env.example .env
+
+# Run development server
+pnpm run dev
+```
+
+Access: Frontend at http://localhost:5173, Backend at http://localhost:8000
 
 ## Installation
 
@@ -402,33 +461,53 @@ Current test coverage includes:
 
 ### Docker (Recommended)
 
+The application includes complete Docker configuration for both frontend and backend:
+
 **Quick start with Docker Compose:**
 ```bash
+# Build all images
+./build-docker.sh
+
+# Start services
 docker-compose up -d
+
+# Check status
+docker-compose ps
+
+# View logs
+docker-compose logs -f
+
+# Stop services
+docker-compose down
 ```
 
-**Build and run manually:**
-```bash
-# Build image
-docker build -t siret-extractor:latest .
+**Services:**
+- **Backend**: FastAPI on port 8000 (internal)
+- **Frontend**: Nginx serving React app on port 80 (public)
+- Frontend automatically proxies `/api/*` requests to backend
+- Both services include health checks
+- Automatic restart on failure
 
-# Run container
-docker run -d \
-  -p 8000:8000 \
-  -e HEADLESS=true \
-  -e MAX_CONCURRENT_WORKERS=10 \
-  --name siret-extractor \
-  siret-extractor:latest
-```
+### Coolify Deployment
 
-**Production deployment:**
-```bash
-# Using docker-compose with environment variables
-docker-compose -f docker-compose.yml up -d
+The application is pre-configured for Coolify:
 
-# Scale with multiple workers
-docker-compose up -d --scale api=3
-```
+1. Create new project in Coolify dashboard
+2. Add backend service:
+   - Source: GitHub repository
+   - Dockerfile: `./Dockerfile`
+   - Port: 8000
+3. Add frontend service:
+   - Source: Same repository
+   - Working directory: `frontend`
+   - Dockerfile: `./frontend/Dockerfile`
+   - Port: 80
+4. Configure domains and environment variables
+5. Deploy both services
+
+**For complete deployment guide:**
+- [DOCKER_DEPLOYMENT.md](DOCKER_DEPLOYMENT.md) - Complete Docker and Coolify guide
+- [DEPLOYMENT.md](DEPLOYMENT.md) - Additional deployment options
 
 ### Systemd Service (Linux)
 
@@ -500,8 +579,8 @@ server {
 ### Project Structure
 
 ```
-production-version/
-├── app/
+ackis-siret-extractor-1/
+├── app/                      # Backend application
 │   ├── __init__.py           # Version and package init
 │   ├── main.py               # FastAPI application entry point
 │   ├── config.py             # Configuration management (env vars)
@@ -516,17 +595,37 @@ production-version/
 │       ├── playwright_scraper.py  # Browser automation
 │       ├── worker_pool.py    # Concurrent worker management
 │       └── proxy_manager.py  # Proxy rotation (optional)
-├── tests/
+├── frontend/                 # Frontend application
+│   ├── src/
+│   │   ├── components/       # React components
+│   │   │   ├── FileUpload/   # File upload with drag-and-drop
+│   │   │   ├── ColumnSelector/ # Column selection with priorities
+│   │   │   ├── ProcessingQueue/ # Processing status display
+│   │   │   ├── ResultsTable/ # Results display and filtering
+│   │   │   └── History/      # History management
+│   │   ├── services/         # API and file services
+│   │   ├── hooks/            # Custom React hooks
+│   │   ├── types/            # TypeScript types
+│   │   ├── pages/            # Page components
+│   │   └── utils/            # Utility functions
+│   ├── tests/                # Frontend tests (Vitest + Playwright)
+│   ├── Dockerfile            # Frontend Docker image (Nginx + SPA)
+│   ├── nginx.conf            # Nginx configuration
+│   ├── package.json          # Frontend dependencies
+│   └── README.md             # Frontend documentation
+├── tests/                    # Backend tests
 │   ├── __init__.py
 │   └── test_api.py           # API endpoint tests
-├── .env.example              # Environment variable template
+├── .env.example              # Backend environment variables
 ├── .dockerignore             # Docker build exclusions
 ├── .gitignore                # Git exclusions
-├── Dockerfile                # Production Docker image
-├── docker-compose.yml        # Docker orchestration
+├── Dockerfile                # Backend Docker image
+├── docker-compose.yml        # Full-stack orchestration
+├── build-docker.sh           # Docker build script
 ├── requirements.txt          # Python dependencies
 ├── API_DOCUMENTATION.md      # Detailed API docs
-├── DEPLOYMENT.md             # Deployment guide
+├── DOCKER_DEPLOYMENT.md      # Docker and Coolify deployment guide
+├── DEPLOYMENT.md             # Additional deployment options
 └── README.md                 # This file
 ```
 
