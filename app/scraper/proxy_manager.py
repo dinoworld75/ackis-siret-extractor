@@ -1,23 +1,31 @@
 """Proxy rotation manager for distributing requests across multiple proxies"""
 
 import random
+import logging
 from typing import List, Optional
 from app.config import settings
+
+logger = logging.getLogger(__name__)
 
 
 class ProxyManager:
     """Manages proxy rotation for web scraping"""
 
-    def __init__(self, proxy_list: Optional[List[str]] = None):
+    def __init__(self, proxy_list: Optional[List[str]] = None, worker_id: Optional[int] = None):
         """
         Initialize the proxy manager.
 
         Args:
             proxy_list: List of proxy URLs. If None, uses settings.proxy_list
+            worker_id: Optional worker ID for logging and identification
         """
         self.proxy_list = proxy_list or settings.proxy_list
+        self.worker_id = worker_id
         self.current_index = 0
         self.enabled = settings.proxy_rotation_enabled and len(self.proxy_list) > 0
+
+        if self.enabled and worker_id is not None:
+            logger.info(f"Worker {worker_id}: Initialized with {len(self.proxy_list)} proxies")
 
     def get_next_proxy(self) -> Optional[str]:
         """
@@ -87,3 +95,42 @@ class ProxyManager:
             True if enabled, False otherwise
         """
         return self.enabled
+
+
+def distribute_proxies_to_workers(proxy_list: List[str], num_workers: int, proxies_per_worker: int) -> List[ProxyManager]:
+    """
+    Distribute proxies among workers, creating dedicated ProxyManager instances.
+
+    Args:
+        proxy_list: Complete list of proxy URLs
+        num_workers: Number of workers to create
+        proxies_per_worker: Number of proxies to assign to each worker
+
+    Returns:
+        List of ProxyManager instances, one per worker
+
+    Strategy:
+        - Divides proxy list into chunks
+        - Each worker gets a dedicated set of proxies
+        - Round-robin distribution if not enough proxies
+    """
+    if not proxy_list:
+        logger.warning("No proxies available for distribution")
+        return [ProxyManager(proxy_list=[], worker_id=i) for i in range(num_workers)]
+
+    proxy_managers = []
+    total_proxies_needed = num_workers * proxies_per_worker
+
+    for worker_id in range(num_workers):
+        start_idx = (worker_id * proxies_per_worker) % len(proxy_list)
+        worker_proxies = []
+
+        for i in range(proxies_per_worker):
+            proxy_idx = (start_idx + i) % len(proxy_list)
+            worker_proxies.append(proxy_list[proxy_idx])
+
+        proxy_manager = ProxyManager(proxy_list=worker_proxies, worker_id=worker_id)
+        proxy_managers.append(proxy_manager)
+
+    logger.info(f"Distributed {len(proxy_list)} proxies among {num_workers} workers ({proxies_per_worker} proxies/worker)")
+    return proxy_managers

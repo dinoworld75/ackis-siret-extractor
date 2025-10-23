@@ -25,6 +25,12 @@ class Settings(BaseSettings):
     proxy_list: List[str] = Field(default_factory=list, env="PROXY_LIST")
     proxy_rotation_enabled: bool = Field(default=True, env="PROXY_ROTATION_ENABLED")
 
+    # Webshare Integration
+    webshare_api_key: Optional[str] = Field(default=None, env="WEBSHARE_API_KEY")
+    webshare_api_url: str = Field(default="https://proxy.webshare.io/api/v2/", env="WEBSHARE_API_URL")
+    webshare_enabled: bool = Field(default=False, env="WEBSHARE_ENABLED")
+    proxies_per_worker: int = Field(default=5, env="PROXIES_PER_WORKER")
+
     # Rate Limiting
     rate_limit_requests: int = Field(default=100, env="RATE_LIMIT_REQUESTS")
     rate_limit_window: int = Field(default=60, env="RATE_LIMIT_WINDOW")
