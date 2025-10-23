@@ -1,6 +1,8 @@
 """API routes for SIRET extraction endpoints"""
 
 import time
+import asyncio
+import logging
 from typing import List
 from fastapi import APIRouter, HTTPException, status
 
@@ -12,7 +14,10 @@ from app.models import (
     HealthResponse,
 )
 from app.scraper import PlaywrightScraper
+from app.scraper.proxy_manager import ProxyManager
 from app import __version__
+
+logger = logging.getLogger(__name__)
 
 
 router = APIRouter()
@@ -94,51 +99,88 @@ async def extract_batch_urls(request: BatchExtractionRequest):
     Each URL is scraped independently and results are returned for all URLs.
 
     Args:
-        request: BatchExtractionRequest with list of URLs
+        request: BatchExtractionRequest with list of URLs, concurrent_workers, and optional proxies
 
     Returns:
         BatchExtractionResponse with results for all URLs
     """
-    results: List[ExtractionResult] = []
+    urls = [str(url) for url in request.urls]
+    concurrent_workers = request.concurrent_workers
 
-    async with PlaywrightScraper() as scraper:
-        for url in request.urls:
+    logger.info(f"[Batch Extract] Processing {len(urls)} URLs with {concurrent_workers} concurrent workers")
+
+    # Setup proxy manager if proxies provided
+    proxy_manager = None
+    if request.proxies and len(request.proxies) > 0:
+        proxy_list = [proxy.to_url() for proxy in request.proxies]
+        proxy_manager = ProxyManager(proxy_list=proxy_list)
+        logger.info(f"[Batch Extract] Using {len(proxy_list)} proxies for rotation")
+    else:
+        logger.info("[Batch Extract] No proxies configured, using direct connection")
+
+    # Create semaphore to limit concurrent workers
+    semaphore = asyncio.Semaphore(concurrent_workers)
+
+    async def process_url_with_semaphore(url: str, index: int) -> ExtractionResult:
+        """Process a single URL with semaphore to limit concurrency"""
+        async with semaphore:
+            worker_id = index % concurrent_workers
             start_time = time.time()
 
+            logger.info(f"[Worker {worker_id}] Processing URL {index + 1}/{len(urls)}: {url}")
+
             try:
-                identifiers = await scraper.scrape_url(str(url))
+                # Create scraper instance with proxy manager for this worker
+                async with PlaywrightScraper(proxy_manager=proxy_manager) as scraper:
+                    identifiers = await scraper.scrape_url(url)
+
                 processing_time = time.time() - start_time
 
                 # Check if we found at least one identifier
                 success = any(identifiers.values())
                 error = None if success else "No valid identifiers found"
 
-                results.append(ExtractionResult(
-                    url=str(url),
+                result = ExtractionResult(
+                    url=url,
                     siret=identifiers.get('siret'),
                     siren=identifiers.get('siren'),
                     tva=identifiers.get('tva'),
                     success=success,
                     error=error,
                     processing_time=round(processing_time, 3)
-                ))
+                )
+
+                status_emoji = "✓" if success else ("⚠" if not error else "✗")
+                logger.info(f"[Worker {worker_id}] {status_emoji} Completed {url} in {processing_time:.2f}s")
+
+                return result
 
             except Exception as e:
                 processing_time = time.time() - start_time
+                logger.error(f"[Worker {worker_id}] ✗ Error processing {url}: {str(e)}")
 
-                results.append(ExtractionResult(
-                    url=str(url),
+                return ExtractionResult(
+                    url=url,
                     siret=None,
                     siren=None,
                     tva=None,
                     success=False,
                     error=str(e),
                     processing_time=round(processing_time, 3)
-                ))
+                )
+
+    # Process all URLs concurrently with limited workers
+    batch_start_time = time.time()
+    tasks = [process_url_with_semaphore(url, i) for i, url in enumerate(urls)]
+    results = await asyncio.gather(*tasks)
+    batch_duration = time.time() - batch_start_time
 
     # Calculate summary statistics
     successful = sum(1 for r in results if r.success)
     failed = len(results) - successful
+
+    logger.info(f"[Batch Extract] Completed {len(urls)} URLs in {batch_duration:.2f}s ({batch_duration/len(urls):.2f}s per URL avg)")
+    logger.info(f"[Batch Extract] Results: {successful} success, {failed} failed")
 
     return BatchExtractionResponse(
         results=results,

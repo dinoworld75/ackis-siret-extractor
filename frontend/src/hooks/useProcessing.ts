@@ -19,11 +19,20 @@ export interface ProcessingProgress {
   estimatedTimeRemaining: number; // in seconds
 }
 
+export interface ProcessingLog {
+  timestamp: string;
+  message: string;
+  type: 'info' | 'success' | 'warning' | 'error';
+}
+
 export interface ProcessingState {
   status: ProcessingStatus;
   progress: ProcessingProgress;
   results: ExtractionResult[];
   error: string | null;
+  logs: ProcessingLog[];
+  concurrentWorkers?: number;
+  proxyCount?: number;
 }
 
 const AVERAGE_TIME_PER_URL = 17.63; // seconds, from backend performance data
@@ -44,13 +53,50 @@ export function useProcessing() {
     },
     results: [],
     error: null,
+    logs: [],
+    concurrentWorkers: undefined,
+    proxyCount: undefined,
   });
+
 
   const startProcessing = useCallback(
     async (file: UploadedFile, selectedColumns: ColumnSelection[]) => {
       console.log('[Processing] Starting processing...');
       console.log('[Processing] File:', file.name);
       console.log('[Processing] Selected columns:', selectedColumns.filter((c) => c.selected));
+
+      // Load settings from localStorage
+      const settingsJson = localStorage.getItem('extractorSettings');
+      const settings = settingsJson ? JSON.parse(settingsJson) : { concurrentWorkers: 10 };
+      const concurrentWorkers = settings.concurrentWorkers || 10;
+
+      // Load proxies from localStorage
+      const proxyDataRaw = localStorage.getItem('proxyData');
+      let proxies: Array<{host: string; port: number; username?: string; password?: string}> = [];
+
+      if (proxyDataRaw) {
+        const proxyLines = proxyDataRaw.split('\n').filter(line => line.trim());
+        proxies = proxyLines.map(line => {
+          // Format: host:port:username:password
+          const parts = line.trim().split(':');
+          if (parts.length >= 2) {
+            return {
+              host: parts[0],
+              port: parseInt(parts[1], 10),
+              username: parts[2] || undefined,
+              password: parts[3] || undefined,
+            };
+          }
+          return null;
+        }).filter(p => p !== null) as Array<{host: string; port: number; username?: string; password?: string}>;
+      }
+
+      console.log(`[Processing] Using ${concurrentWorkers} concurrent workers`);
+      if (proxies.length > 0) {
+        console.log(`[Processing] Using ${proxies.length} proxies for rotation`);
+      } else {
+        console.log('[Processing] No proxies configured');
+      }
 
       // Extract URLs from file
       const extractedUrls = extractUrls(file, selectedColumns);
@@ -71,6 +117,9 @@ export function useProcessing() {
           },
           results: [],
           error: 'No valid URLs found in selected columns',
+          logs: [],
+          concurrentWorkers: undefined,
+          proxyCount: undefined,
         });
         return;
       }
@@ -82,6 +131,7 @@ export function useProcessing() {
 
       console.log(`[Processing] Extracted ${totalUrls} URLs, split into ${totalBatches} batches`);
 
+      // Initialize state with logs
       setState({
         status: 'processing',
         progress: {
@@ -97,6 +147,30 @@ export function useProcessing() {
         },
         results: [],
         error: null,
+        logs: [
+          {
+            timestamp: new Date().toLocaleTimeString('fr-FR', { hour12: false }),
+            message: `Starting processing of ${totalUrls} URLs`,
+            type: 'info',
+          },
+          {
+            timestamp: new Date().toLocaleTimeString('fr-FR', { hour12: false }),
+            message: `Using ${concurrentWorkers} concurrent workers`,
+            type: 'info',
+          },
+          {
+            timestamp: new Date().toLocaleTimeString('fr-FR', { hour12: false }),
+            message: proxies.length > 0 ? `Using ${proxies.length} proxies for rotation` : 'No proxies configured (direct connection)',
+            type: proxies.length > 0 ? 'success' : 'warning',
+          },
+          {
+            timestamp: new Date().toLocaleTimeString('fr-FR', { hour12: false }),
+            message: `Split into ${totalBatches} batches of ${BATCH_SIZE} URLs each`,
+            type: 'info',
+          },
+        ],
+        concurrentWorkers,
+        proxyCount: proxies.length,
       });
 
       const allResults: ExtractionResult[] = [];
@@ -109,8 +183,21 @@ export function useProcessing() {
 
           console.log(`[Processing] Processing batch ${i + 1}/${totalBatches} (${batch.length} URLs)`);
 
+          // Add log for batch start
+          setState((prev) => ({
+            ...prev,
+            logs: [
+              ...prev.logs,
+              {
+                timestamp: new Date().toLocaleTimeString('fr-FR', { hour12: false }),
+                message: `Processing batch ${i + 1}/${totalBatches} (${batch.length} URLs)`,
+                type: 'info' as const,
+              },
+            ],
+          }));
+
           try {
-            const response = await apiClient.extractBatch(batch);
+            const response = await apiClient.extractBatch(batch, concurrentWorkers, proxies.length > 0 ? proxies : undefined);
             allResults.push(...response.results);
 
             const batchEndTime = Date.now();
@@ -129,7 +216,7 @@ export function useProcessing() {
             const avgTimePerUrl = elapsedTime / processedUrls;
             const estimatedTimeRemaining = remainingUrls * avgTimePerUrl;
 
-            setState({
+            setState((prev) => ({
               status: 'processing',
               progress: {
                 currentBatch: i + 1,
@@ -144,7 +231,17 @@ export function useProcessing() {
               },
               results: allResults,
               error: null,
-            });
+              logs: [
+                ...prev.logs,
+                {
+                  timestamp: new Date().toLocaleTimeString('fr-FR', { hour12: false }),
+                  message: `Batch ${i + 1} completed in ${batchDuration.toFixed(2)}s → ${successCount} success, ${noDataCount} no data, ${errorCount} errors`,
+                  type: 'success' as const,
+                },
+              ],
+              concurrentWorkers: prev.concurrentWorkers,
+              proxyCount: prev.proxyCount,
+            }));
           } catch (batchError) {
             console.error(`[Processing] Batch ${i + 1} failed:`, batchError);
 
@@ -153,7 +250,7 @@ export function useProcessing() {
             await new Promise((resolve) => setTimeout(resolve, 2000)); // Wait 2s before retry
 
             try {
-              const response = await apiClient.extractBatch(batch);
+              const response = await apiClient.extractBatch(batch, concurrentWorkers, proxies.length > 0 ? proxies : undefined);
               allResults.push(...response.results);
               console.log(`[Processing] Batch ${i + 1} retry succeeded`);
 
@@ -168,7 +265,7 @@ export function useProcessing() {
               const avgTimePerUrl = elapsedTime / processedUrls;
               const estimatedTimeRemaining = remainingUrls * avgTimePerUrl;
 
-              setState({
+              setState((prev) => ({
                 status: 'processing',
                 progress: {
                   currentBatch: i + 1,
@@ -183,7 +280,10 @@ export function useProcessing() {
                 },
                 results: allResults,
                 error: null,
-              });
+                logs: prev.logs,
+                concurrentWorkers: prev.concurrentWorkers,
+                proxyCount: prev.proxyCount,
+              }));
             } catch (retryError) {
               console.error(`[Processing] Batch ${i + 1} retry failed:`, retryError);
               throw new Error(
@@ -204,7 +304,7 @@ export function useProcessing() {
         const errorCount = allResults.filter((r) => r.status === 'error').length;
         const noDataCount = allResults.filter((r) => r.status === 'no_data').length;
 
-        setState({
+        setState((prev) => ({
           status: 'completed',
           progress: {
             currentBatch: totalBatches,
@@ -219,7 +319,22 @@ export function useProcessing() {
           },
           results: allResults,
           error: null,
-        });
+          logs: [
+            ...prev.logs,
+            {
+              timestamp: new Date().toLocaleTimeString('fr-FR', { hour12: false }),
+              message: `Processing completed! ${totalUrls} URLs processed in ${totalTime.toFixed(2)}s`,
+              type: 'success' as const,
+            },
+            {
+              timestamp: new Date().toLocaleTimeString('fr-FR', { hour12: false }),
+              message: `Final results: ${successCount} success, ${noDataCount} no data, ${errorCount} errors`,
+              type: 'info' as const,
+            },
+          ],
+          concurrentWorkers: prev.concurrentWorkers,
+          proxyCount: prev.proxyCount,
+        }));
 
         return allResults;
       } catch (error) {
@@ -255,6 +370,9 @@ export function useProcessing() {
       },
       results: [],
       error: null,
+      logs: [],
+      concurrentWorkers: undefined,
+      proxyCount: undefined,
     });
   }, []);
 

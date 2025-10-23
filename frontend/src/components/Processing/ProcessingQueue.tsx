@@ -1,4 +1,5 @@
-import { ProcessingState } from '../../hooks/useProcessing';
+import { ProcessingState, ProcessingLog } from '../../hooks/useProcessing';
+import { useEffect, useRef } from 'react';
 
 interface ProcessingQueueProps {
   state: ProcessingState;
@@ -23,12 +24,35 @@ function formatTime(seconds: number): string {
 }
 
 export function ProcessingQueue({ state, onCancel }: ProcessingQueueProps) {
+  const logsEndRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll to bottom when logs update
+  useEffect(() => {
+    if (logsEndRef.current) {
+      logsEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [state.logs]);
+
   if (state.status === 'idle') {
     return null;
   }
 
-  const { status, progress, error } = state;
+  const { status, progress, error, logs, concurrentWorkers, proxyCount } = state;
   const { currentBatch, totalBatches, processedUrls, totalUrls, successCount, errorCount, noDataCount, percentage, estimatedTimeRemaining } = progress;
+
+  // Get log style based on type
+  const getLogStyle = (log: ProcessingLog) => {
+    switch (log.type) {
+      case 'success':
+        return 'text-green-700 bg-green-50';
+      case 'error':
+        return 'text-red-700 bg-red-50';
+      case 'warning':
+        return 'text-yellow-700 bg-yellow-50';
+      default:
+        return 'text-gray-700 bg-gray-50';
+    }
+  };
 
   return (
     <div className="w-full p-6 bg-white border-2 border-gray-200 rounded-lg shadow-sm">
@@ -120,6 +144,39 @@ export function ProcessingQueue({ state, onCancel }: ProcessingQueueProps) {
             <p className="text-sm text-green-700 mt-1">
               Successfully processed {totalUrls} URLs. {successCount} URLs returned data, {noDataCount} URLs had no data, and {errorCount} URLs had errors.
             </p>
+          </div>
+        )}
+
+        {/* Processing Configuration Info */}
+        {(concurrentWorkers !== undefined || proxyCount !== undefined) && (
+          <div className="pt-4 border-t border-gray-200">
+            <div className="flex gap-4 text-xs text-gray-600">
+              {concurrentWorkers !== undefined && (
+                <div>
+                  <span className="font-medium">Workers:</span> {concurrentWorkers}
+                </div>
+              )}
+              {proxyCount !== undefined && (
+                <div>
+                  <span className="font-medium">Proxies:</span> {proxyCount > 0 ? `${proxyCount} active` : 'None'}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Real-time Logs */}
+        {logs && logs.length > 0 && (
+          <div className="pt-4 border-t border-gray-200">
+            <h4 className="text-sm font-semibold text-gray-700 mb-2">Processing Logs</h4>
+            <div className="bg-gray-900 text-gray-100 rounded-lg p-3 h-48 overflow-y-auto font-mono text-xs">
+              {logs.map((log, index) => (
+                <div key={index} className={`mb-1 p-1 rounded ${getLogStyle(log)}`}>
+                  <span className="text-gray-500">[{log.timestamp}]</span> {log.message}
+                </div>
+              ))}
+              <div ref={logsEndRef} />
+            </div>
           </div>
         )}
       </div>

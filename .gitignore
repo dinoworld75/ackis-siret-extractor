@@ -140,3 +140,14 @@ Thumbs.db
 # Logs
 logs/
 *.log
+
+# Test results
+test_results/
+test-*.csv
+test-*.xlsx
+test_results_*.csv
+test_results_*.xlsx
+
+# Temp files
+.~lock.*
+test-upload.csv

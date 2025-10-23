@@ -16,9 +16,35 @@ class ExtractionRequest(BaseModel):
         }
 
 
+class ProxyConfig(BaseModel):
+    """Proxy configuration"""
+    host: str = Field(..., description="Proxy host")
+    port: int = Field(..., description="Proxy port")
+    username: Optional[str] = Field(None, description="Proxy username")
+    password: Optional[str] = Field(None, description="Proxy password")
+
+    def to_playwright_format(self) -> dict:
+        """Convert to Playwright proxy format"""
+        proxy_dict = {
+            "server": f"http://{self.host}:{self.port}"
+        }
+        if self.username and self.password:
+            proxy_dict["username"] = self.username
+            proxy_dict["password"] = self.password
+        return proxy_dict
+
+    def to_url(self) -> str:
+        """Convert to URL format for ProxyManager"""
+        if self.username and self.password:
+            return f"http://{self.username}:{self.password}@{self.host}:{self.port}"
+        return f"http://{self.host}:{self.port}"
+
+
 class BatchExtractionRequest(BaseModel):
     """Batch URL extraction request"""
     urls: List[HttpUrl] = Field(..., min_length=1, max_length=100, description="List of URLs to process")
+    concurrent_workers: int = Field(10, ge=1, le=20, description="Number of concurrent workers (1-20)")
+    proxies: Optional[List[ProxyConfig]] = Field(None, description="Optional list of proxies for rotation")
 
     @validator("urls")
     def validate_unique_urls(cls, v):
@@ -33,6 +59,15 @@ class BatchExtractionRequest(BaseModel):
                 "urls": [
                     "https://example1.fr",
                     "https://example2.fr"
+                ],
+                "concurrent_workers": 10,
+                "proxies": [
+                    {
+                        "host": "142.111.48.253",
+                        "port": 7030,
+                        "username": "fxypiwva",
+                        "password": "1bc04c2cd1mc"
+                    }
                 ]
             }
         }

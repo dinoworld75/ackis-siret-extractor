@@ -108,11 +108,29 @@ class APIClient {
     }
   }
 
-  async extractBatch(urls: string[]): Promise<BatchExtractionResponse> {
+  async extractBatch(
+    urls: string[],
+    concurrentWorkers?: number,
+    proxies?: Array<{host: string; port: number; username?: string; password?: string}>
+  ): Promise<BatchExtractionResponse> {
     try {
+      const payload: any = { urls };
+
+      // Add concurrent workers if specified
+      if (concurrentWorkers !== undefined) {
+        payload.concurrent_workers = concurrentWorkers;
+        console.log(`[API] Using ${concurrentWorkers} concurrent workers`);
+      }
+
+      // Add proxies if specified
+      if (proxies && proxies.length > 0) {
+        payload.proxies = proxies;
+        console.log(`[API] Using ${proxies.length} proxies for rotation`);
+      }
+
       const response = await this.client.post<BatchExtractionResponse>(
         '/api/extract/batch',
-        { urls }
+        payload
       );
       return response.data;
     } catch (error) {
@@ -142,6 +160,10 @@ export const apiClient = new APIClient();
 
 // Export convenience functions
 export const extractSiretData = (url: string) => apiClient.extractSingle(url);
-export const extractBatch = (urls: string[]) => apiClient.extractBatch(urls);
+export const extractBatch = (
+  urls: string[],
+  concurrentWorkers?: number,
+  proxies?: Array<{host: string; port: number; username?: string; password?: string}>
+) => apiClient.extractBatch(urls, concurrentWorkers, proxies);
 
 export { BATCH_SIZE };

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { extractSiretData } from '../../services/api';
 import { LoadingSpinner } from '../Shared/LoadingSpinner';
-import type { ExtractionResult } from '../../types/extraction.types';
+import type { ExtractionResult } from '../../types/api.types';
 
 export function QuickSearch() {
   const [url, setUrl] = useState('');
