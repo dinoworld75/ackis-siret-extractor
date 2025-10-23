@@ -5,6 +5,7 @@ import { ColumnSelector } from '../components/ColumnSelector/ColumnSelector';
 import { ProcessingQueue } from '../components/Processing/ProcessingQueue';
 import { ResultsTable } from '../components/Results/ResultsTable';
 import { ResultsDownload } from '../components/Results/ResultsDownload';
+import { QuickSearch } from '../components/QuickSearch/QuickSearch';
 import { UploadedFile } from '../types/file.types';
 import { ColumnSelection } from '../types/column.types';
 import { useProcessing } from '../hooks/useProcessing';
@@ -108,7 +109,20 @@ export function Home() {
         {showUploadSection && (
           <>
             <section>
-              <h2 className="text-xl font-semibold mb-4">1. Upload File</h2>
+              <QuickSearch />
+            </section>
+
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-gray-300"></div>
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="px-4 bg-gray-50 text-gray-500 font-medium">OR</span>
+              </div>
+            </div>
+
+            <section>
+              <h2 className="text-xl font-semibold mb-4">Batch Processing</h2>
               <FileUpload onFileUploaded={handleFileUploaded} />
             </section>
 

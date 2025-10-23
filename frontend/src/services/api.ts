@@ -1,5 +1,5 @@
 import axios, { AxiosInstance, AxiosError } from 'axios';
-import { BatchExtractionResponse } from '../types/api.types';
+import { BatchExtractionResponse, SingleExtractionResponse, ExtractionResult } from '../types/api.types';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 const BATCH_SIZE = Number(import.meta.env.VITE_BATCH_SIZE) || 100;
@@ -70,6 +70,44 @@ class APIClient {
     );
   }
 
+  async extractSingle(url: string): Promise<ExtractionResult> {
+    try {
+      const response = await this.client.post<SingleExtractionResponse>(
+        '/api/extract',
+        { url }
+      );
+
+      // Map backend response to frontend format
+      const data = response.data;
+      const hasData = data.siret || data.siren || data.tva;
+
+      return {
+        url: data.url,
+        siret: data.siret,
+        siren: data.siren,
+        tva: data.tva,
+        status: data.success ? 'success' : (hasData ? 'success' : (data.error ? 'error' : 'no_data')),
+        error: data.error,
+        processing_time: data.processing_time,
+        data: {
+          siret: data.siret,
+          siren: data.siren,
+          tva: data.tva,
+          mention_legale: null, // Backend doesn't return this yet
+        },
+      };
+    } catch (error) {
+      if (error instanceof AxiosError) {
+        console.error('[API] Single extraction error:', {
+          message: error.message,
+          status: error.response?.status,
+          data: error.response?.data,
+        });
+      }
+      throw error;
+    }
+  }
+
   async extractBatch(urls: string[]): Promise<BatchExtractionResponse> {
     try {
       const response = await this.client.post<BatchExtractionResponse>(
@@ -101,4 +139,9 @@ class APIClient {
 }
 
 export const apiClient = new APIClient();
+
+// Export convenience functions
+export const extractSiretData = (url: string) => apiClient.extractSingle(url);
+export const extractBatch = (urls: string[]) => apiClient.extractBatch(urls);
+
 export { BATCH_SIZE };

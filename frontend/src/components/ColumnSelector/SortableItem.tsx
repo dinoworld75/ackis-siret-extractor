@@ -50,10 +50,10 @@ export function SortableItem({ id, selection, onToggle }: SortableItemProps) {
       />
 
       <span
-        className={`flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-full text-xs font-bold ${
+        className={`flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-full text-xs font-bold shadow-sm ${
           selection.selected
-            ? 'bg-primary text-white'
-            : 'bg-gray-200 text-gray-500'
+            ? 'bg-blue-600 text-white border-2 border-blue-700'
+            : 'bg-gray-200 text-gray-600 border border-gray-300'
         }`}
       >
         {selection.priority}

@@ -54,6 +54,9 @@ export function Navbar() {
               <NavLink to="/history" className={navLinkClass}>
                 History
               </NavLink>
+              <NavLink to="/settings" className={navLinkClass}>
+                Settings
+              </NavLink>
               <NavLink to="/docs" className={navLinkClass}>
                 API Docs
               </NavLink>
@@ -126,6 +129,13 @@ export function Navbar() {
               onClick={() => setIsMenuOpen(false)}
             >
               History
+            </NavLink>
+            <NavLink
+              to="/settings"
+              className={mobileNavLinkClass}
+              onClick={() => setIsMenuOpen(false)}
+            >
+              Settings
             </NavLink>
             <NavLink
               to="/docs"
