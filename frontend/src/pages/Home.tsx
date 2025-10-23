@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { FileUpload } from '../components/FileUpload/FileUpload';
 import { ColumnSelector } from '../components/ColumnSelector/ColumnSelector';
 import { ProcessingQueue } from '../components/Processing/ProcessingQueue';
@@ -7,10 +7,13 @@ import { ResultsDownload } from '../components/Results/ResultsDownload';
 import { UploadedFile } from '../types/file.types';
 import { ColumnSelection } from '../types/column.types';
 import { useProcessing } from '../hooks/useProcessing';
+import { saveHistory } from '../services/historyStorage';
 
 export function Home() {
   const [uploadedFile, setUploadedFile] = useState<UploadedFile | null>(null);
   const [columnSelections, setColumnSelections] = useState<ColumnSelection[]>([]);
+  const [processingStartTime, setProcessingStartTime] = useState<number | null>(null);
+  const [historySaved, setHistorySaved] = useState(false);
   const { state, startProcessing, reset, cancel } = useProcessing();
 
   const handleFileUploaded = (file: UploadedFile) => {
@@ -29,16 +32,64 @@ export function Home() {
     }
 
     try {
+      setProcessingStartTime(Date.now());
+      setHistorySaved(false);
       await startProcessing(uploadedFile, columnSelections);
     } catch (error) {
       console.error('Processing failed:', error);
     }
   };
 
+  // Auto-save to history when processing completes successfully
+  useEffect(() => {
+    const saveToHistory = async () => {
+      if (
+        state.status === 'completed' &&
+        uploadedFile &&
+        state.results.length > 0 &&
+        processingStartTime &&
+        !historySaved
+      ) {
+        const processingEndTime = Date.now();
+        const processingTime = (processingEndTime - processingStartTime) / 1000; // seconds
+
+        const selectedColumnNames = columnSelections
+          .filter((c) => c.selected)
+          .map((c) => c.columnName);
+
+        try {
+          await saveHistory({
+            fileName: uploadedFile.name,
+            fileSize: uploadedFile.size,
+            fileType: uploadedFile.type,
+            processedAt: new Date(),
+            totalUrls: state.progress.totalUrls,
+            successCount: state.progress.successCount,
+            noDataCount: state.progress.noDataCount,
+            errorCount: state.progress.errorCount,
+            processingTime,
+            selectedColumns: selectedColumnNames,
+            results: state.results,
+            originalFileData: uploadedFile.data,
+          });
+
+          setHistorySaved(true);
+          console.log('[History] Results saved to history');
+        } catch (error) {
+          console.error('[History] Failed to save to history:', error);
+        }
+      }
+    };
+
+    saveToHistory();
+  }, [state.status, uploadedFile, state.results, processingStartTime, historySaved, columnSelections, state.progress]);
+
   const handleReset = () => {
     reset();
     setUploadedFile(null);
     setColumnSelections([]);
+    setProcessingStartTime(null);
+    setHistorySaved(false);
   };
 
   const canStartProcessing =
@@ -101,9 +152,14 @@ export function Home() {
               <>
                 <section>
                   <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
-                    <p className="text-green-800 font-medium">
+                    <p className="text-green-800 font-medium mb-2">
                       Processing complete! {state.progress.processedUrls} URLs processed.
                     </p>
+                    {historySaved && (
+                      <p className="text-green-700 text-sm">
+                        Results saved to history. <a href="#history" className="underline hover:text-green-900">View all history</a>
+                      </p>
+                    )}
                   </div>
 
                   <ResultsTable results={state.results} />
