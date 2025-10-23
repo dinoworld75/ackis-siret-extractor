@@ -103,8 +103,24 @@ class ExtractionResult(BaseModel):
         }
 
 
+class BatchStartResponse(BaseModel):
+    """Immediate response when batch starts"""
+    batch_id: str = Field(..., description="Unique batch ID for progress tracking")
+    message: str = Field(..., description="Status message")
+    total_urls: int = Field(..., description="Total number of URLs to process")
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "batch_id": "550e8400-e29b-41d4-a716-446655440000",
+                "message": "Batch processing started",
+                "total_urls": 10
+            }
+        }
+
+
 class BatchExtractionResponse(BaseModel):
-    """Batch extraction response"""
+    """Batch extraction response with results"""
     batch_id: str = Field(..., description="Unique batch ID for progress tracking")
     results: List[ExtractionResult] = Field(..., description="List of extraction results")
     total: int = Field(..., description="Total number of URLs processed")

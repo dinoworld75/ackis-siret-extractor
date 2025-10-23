@@ -26,6 +26,28 @@ export interface SingleExtractionResponse {
   processing_time: number;
 }
 
+export interface BatchStartResponse {
+  batch_id: string;
+  message: string;
+  total_urls: number;
+}
+
+export interface BatchProgress {
+  batch_id: string;
+  total_urls: number;
+  completed: number;
+  success: number;
+  failed: number;
+  in_progress: boolean;
+  start_time: number;
+  elapsed_time: number;
+  estimated_time_remaining: number | null;
+}
+
 export interface BatchExtractionResponse {
+  batch_id: string;
   results: ExtractionResult[];
+  total: number;
+  successful: number;
+  failed: number;
 }
