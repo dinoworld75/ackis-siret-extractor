@@ -151,3 +151,4 @@ test_results_*.xlsx
 # Temp files
 .~lock.*
 test-upload.csv
+proxy.csv
