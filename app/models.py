@@ -105,6 +105,7 @@ class ExtractionResult(BaseModel):
 
 class BatchExtractionResponse(BaseModel):
     """Batch extraction response"""
+    batch_id: str = Field(..., description="Unique batch ID for progress tracking")
     results: List[ExtractionResult] = Field(..., description="List of extraction results")
     total: int = Field(..., description="Total number of URLs processed")
     successful: int = Field(..., description="Number of successful extractions")
@@ -113,6 +114,7 @@ class BatchExtractionResponse(BaseModel):
     class Config:
         json_schema_extra = {
             "example": {
+                "batch_id": "550e8400-e29b-41d4-a716-446655440000",
                 "results": [
                     {
                         "url": "https://example1.fr",
@@ -150,5 +152,33 @@ class HealthResponse(BaseModel):
             "example": {
                 "status": "healthy",
                 "version": "1.0.0"
+            }
+        }
+
+
+class BatchProgress(BaseModel):
+    """Real-time progress tracking for batch extraction"""
+    batch_id: str = Field(..., description="Unique batch ID")
+    total_urls: int = Field(..., description="Total number of URLs to process")
+    completed: int = Field(..., description="Number of URLs completed")
+    success: int = Field(..., description="Number of successful extractions")
+    failed: int = Field(..., description="Number of failed extractions")
+    in_progress: bool = Field(..., description="Whether batch is still processing")
+    start_time: float = Field(..., description="Start time (Unix timestamp)")
+    elapsed_time: float = Field(..., description="Elapsed time in seconds")
+    estimated_time_remaining: Optional[float] = Field(None, description="Estimated time remaining in seconds")
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "batch_id": "550e8400-e29b-41d4-a716-446655440000",
+                "total_urls": 10,
+                "completed": 5,
+                "success": 4,
+                "failed": 1,
+                "in_progress": True,
+                "start_time": 1234567890.123,
+                "elapsed_time": 15.5,
+                "estimated_time_remaining": 15.5
             }
         }

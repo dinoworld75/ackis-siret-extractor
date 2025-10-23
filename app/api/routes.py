@@ -3,7 +3,8 @@
 import time
 import asyncio
 import logging
-from typing import List
+import uuid
+from typing import List, Dict, Optional
 from fastapi import APIRouter, HTTPException, status
 
 from app.models import (
@@ -12,6 +13,7 @@ from app.models import (
     ExtractionResult,
     BatchExtractionResponse,
     HealthResponse,
+    BatchProgress,
 )
 from app.scraper import PlaywrightScraper
 from app.scraper.proxy_manager import ProxyManager
@@ -21,6 +23,10 @@ logger = logging.getLogger(__name__)
 
 
 router = APIRouter()
+
+# In-memory storage for batch progress
+# In production, use Redis or similar
+batch_progress_store: Dict[str, BatchProgress] = {}
 
 
 @router.get("/health", response_model=HealthResponse, tags=["Health"])
@@ -98,6 +104,44 @@ async def extract_single_url(request: ExtractionRequest):
         )
 
 
+@router.get("/api/extract/batch/{batch_id}/progress", response_model=BatchProgress, tags=["Extraction"])
+async def get_batch_progress(batch_id: str):
+    """
+    Get real-time progress for a batch extraction job.
+
+    Args:
+        batch_id: Unique batch ID returned from batch extraction request
+
+    Returns:
+        BatchProgress with current progress information
+
+    Raises:
+        HTTPException: If batch_id not found
+    """
+    if batch_id not in batch_progress_store:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Batch ID {batch_id} not found"
+        )
+
+    progress = batch_progress_store[batch_id]
+    current_time = time.time()
+    elapsed = current_time - progress.start_time
+
+    # Calculate estimated time remaining
+    estimated_remaining = None
+    if progress.completed > 0 and progress.in_progress:
+        avg_time_per_url = elapsed / progress.completed
+        remaining_urls = progress.total_urls - progress.completed
+        estimated_remaining = avg_time_per_url * remaining_urls
+
+    # Update elapsed time and estimate
+    progress.elapsed_time = elapsed
+    progress.estimated_time_remaining = estimated_remaining
+
+    return progress
+
+
 @router.post("/api/extract/batch", response_model=BatchExtractionResponse, tags=["Extraction"])
 async def extract_batch_urls(request: BatchExtractionRequest):
     """
@@ -110,12 +154,29 @@ async def extract_batch_urls(request: BatchExtractionRequest):
         request: BatchExtractionRequest with list of URLs, concurrent_workers, and optional proxies
 
     Returns:
-        BatchExtractionResponse with results for all URLs
+        BatchExtractionResponse with results for all URLs, including batch_id for progress tracking
     """
     urls = [str(url) for url in request.urls]
     concurrent_workers = request.concurrent_workers
 
-    logger.info(f"[Batch Extract] Processing {len(urls)} URLs with {concurrent_workers} concurrent workers")
+    # Generate unique batch ID
+    batch_id = str(uuid.uuid4())
+    batch_start_time = time.time()
+
+    # Initialize progress tracking
+    batch_progress_store[batch_id] = BatchProgress(
+        batch_id=batch_id,
+        total_urls=len(urls),
+        completed=0,
+        success=0,
+        failed=0,
+        in_progress=True,
+        start_time=batch_start_time,
+        elapsed_time=0.0,
+        estimated_time_remaining=None
+    )
+
+    logger.info(f"[Batch Extract] Processing {len(urls)} URLs with {concurrent_workers} concurrent workers (Batch ID: {batch_id})")
 
     # Setup proxy manager if proxies provided
     proxy_manager = None
@@ -172,11 +233,24 @@ async def extract_batch_urls(request: BatchExtractionRequest):
                 status_emoji = "✓" if success else ("⚠" if status == "no_data" else "✗")
                 logger.info(f"[Worker {worker_id}] {status_emoji} Completed {url} in {processing_time:.2f}s")
 
+                # Update progress
+                progress = batch_progress_store[batch_id]
+                progress.completed += 1
+                if success:
+                    progress.success += 1
+                else:
+                    progress.failed += 1
+
                 return result
 
             except Exception as e:
                 processing_time = time.time() - start_time
                 logger.error(f"[Worker {worker_id}] ✗ Error processing {url}: {str(e)}")
+
+                # Update progress
+                progress = batch_progress_store[batch_id]
+                progress.completed += 1
+                progress.failed += 1
 
                 return ExtractionResult(
                     url=url,
@@ -192,19 +266,24 @@ async def extract_batch_urls(request: BatchExtractionRequest):
                 )
 
     # Process all URLs concurrently with limited workers
-    batch_start_time = time.time()
     tasks = [process_url_with_semaphore(url, i) for i, url in enumerate(urls)]
     results = await asyncio.gather(*tasks)
     batch_duration = time.time() - batch_start_time
+
+    # Mark batch as complete
+    progress = batch_progress_store[batch_id]
+    progress.in_progress = False
+    progress.elapsed_time = batch_duration
 
     # Calculate summary statistics
     successful = sum(1 for r in results if r.success)
     failed = len(results) - successful
 
-    logger.info(f"[Batch Extract] Completed {len(urls)} URLs in {batch_duration:.2f}s ({batch_duration/len(urls):.2f}s per URL avg)")
+    logger.info(f"[Batch Extract] Completed {len(urls)} URLs in {batch_duration:.2f}s ({batch_duration/len(urls):.2f}s per URL avg) (Batch ID: {batch_id})")
     logger.info(f"[Batch Extract] Results: {successful} success, {failed} failed")
 
     return BatchExtractionResponse(
+        batch_id=batch_id,
         results=results,
         total=len(results),
         successful=successful,
