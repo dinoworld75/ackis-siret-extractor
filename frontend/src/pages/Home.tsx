@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { FileUpload } from '../components/FileUpload/FileUpload';
 import { ColumnSelector } from '../components/ColumnSelector/ColumnSelector';
 import { ProcessingQueue } from '../components/Processing/ProcessingQueue';
@@ -157,7 +158,7 @@ export function Home() {
                     </p>
                     {historySaved && (
                       <p className="text-green-700 text-sm">
-                        Results saved to history. <a href="#history" className="underline hover:text-green-900">View all history</a>
+                        Results saved to history. <Link to="/history" className="underline hover:text-green-900">View all history</Link>
                       </p>
                     )}
                   </div>
