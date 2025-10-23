@@ -306,6 +306,18 @@ export function ResultsTable({ results }: ResultsTableProps) {
                 </th>
                 <th
                   scope="col"
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider"
+                >
+                  Worker
+                </th>
+                <th
+                  scope="col"
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider"
+                >
+                  Proxy
+                </th>
+                <th
+                  scope="col"
                   className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                   onClick={() => handleSort('processing_time')}
                 >
@@ -317,7 +329,7 @@ export function ResultsTable({ results }: ResultsTableProps) {
             <tbody className="bg-white divide-y divide-gray-200">
               {paginatedResults.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+                  <td colSpan={8} className="px-6 py-12 text-center text-gray-500">
                     No results found
                   </td>
                 </tr>
@@ -371,6 +383,18 @@ export function ResultsTable({ results }: ResultsTableProps) {
                             {isExpanded ? '(click to hide)' : '(click to show error)'}
                           </span>
                         )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {result.worker_id !== null && result.worker_id !== undefined ? (
+                          `Worker ${result.worker_id}`
+                        ) : (
+                          <span className="text-gray-400">-</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                        <div className="max-w-xs truncate" title={result.proxy_used || undefined}>
+                          {result.proxy_used || <span className="text-gray-400">Direct</span>}
+                        </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {result.processing_time.toFixed(2)}

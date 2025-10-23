@@ -64,7 +64,9 @@ async def extract_single_url(request: ExtractionRequest):
 
         # Check if we found at least one identifier
         success = any(identifiers.values())
-        error = None if success else "No valid identifiers found"
+        has_data = any(identifiers.values())
+        error = None if has_data else "No valid identifiers found"
+        status = "success" if success else ("no_data" if not has_data else "error")
 
         return ExtractionResult(
             url=str(request.url),
@@ -72,8 +74,11 @@ async def extract_single_url(request: ExtractionRequest):
             siren=identifiers.get('siren'),
             tva=identifiers.get('tva'),
             success=success,
+            status=status,
             error=error,
-            processing_time=round(processing_time, 3)
+            processing_time=round(processing_time, 3),
+            worker_id=None,  # Single URL doesn't use workers
+            proxy_used=None  # Single URL endpoint doesn't use proxies
         )
 
     except Exception as e:
@@ -85,8 +90,11 @@ async def extract_single_url(request: ExtractionRequest):
             siren=None,
             tva=None,
             success=False,
+            status="error",
             error=str(e),
-            processing_time=round(processing_time, 3)
+            processing_time=round(processing_time, 3),
+            worker_id=None,
+            proxy_used=None
         )
 
 
@@ -127,7 +135,13 @@ async def extract_batch_urls(request: BatchExtractionRequest):
             worker_id = index % concurrent_workers
             start_time = time.time()
 
-            logger.info(f"[Worker {worker_id}] Processing URL {index + 1}/{len(urls)}: {url}")
+            # Get proxy to use for this request
+            proxy_used = None
+            if proxy_manager:
+                proxy_used = proxy_manager.get_next_proxy()
+                logger.info(f"[Worker {worker_id}] Processing URL {index + 1}/{len(urls)}: {url} (Proxy: {proxy_used[:20] if proxy_used else 'None'}...)")
+            else:
+                logger.info(f"[Worker {worker_id}] Processing URL {index + 1}/{len(urls)}: {url} (No proxy)")
 
             try:
                 # Create scraper instance with proxy manager for this worker
@@ -138,7 +152,9 @@ async def extract_batch_urls(request: BatchExtractionRequest):
 
                 # Check if we found at least one identifier
                 success = any(identifiers.values())
-                error = None if success else "No valid identifiers found"
+                has_data = any(identifiers.values())
+                error = None if has_data else "No valid identifiers found"
+                status = "success" if success else ("no_data" if not has_data else "error")
 
                 result = ExtractionResult(
                     url=url,
@@ -146,11 +162,14 @@ async def extract_batch_urls(request: BatchExtractionRequest):
                     siren=identifiers.get('siren'),
                     tva=identifiers.get('tva'),
                     success=success,
+                    status=status,
                     error=error,
-                    processing_time=round(processing_time, 3)
+                    processing_time=round(processing_time, 3),
+                    worker_id=worker_id,
+                    proxy_used=proxy_used[:50] if proxy_used else None  # Truncate for display
                 )
 
-                status_emoji = "✓" if success else ("⚠" if not error else "✗")
+                status_emoji = "✓" if success else ("⚠" if status == "no_data" else "✗")
                 logger.info(f"[Worker {worker_id}] {status_emoji} Completed {url} in {processing_time:.2f}s")
 
                 return result
@@ -165,8 +184,11 @@ async def extract_batch_urls(request: BatchExtractionRequest):
                     siren=None,
                     tva=None,
                     success=False,
+                    status="error",
                     error=str(e),
-                    processing_time=round(processing_time, 3)
+                    processing_time=round(processing_time, 3),
+                    worker_id=worker_id,
+                    proxy_used=proxy_used[:50] if proxy_used else None
                 )
 
     # Process all URLs concurrently with limited workers

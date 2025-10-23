@@ -6,6 +6,8 @@ export interface ExtractionResult {
   status: 'success' | 'no_data' | 'error';
   error: string | null;
   processing_time: number;
+  worker_id: number | null;
+  proxy_used: string | null;
   data?: {
     siret: string | null;
     siren: string | null;

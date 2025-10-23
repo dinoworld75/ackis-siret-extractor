@@ -80,8 +80,11 @@ class ExtractionResult(BaseModel):
     siren: Optional[str] = Field(None, description="Extracted SIREN number (9 digits)")
     tva: Optional[str] = Field(None, description="Extracted TVA number (FR + 11 digits)")
     success: bool = Field(..., description="Whether extraction was successful")
+    status: str = Field(..., description="Status: 'success', 'no_data', or 'error'")
     error: Optional[str] = Field(None, description="Error message if extraction failed")
     processing_time: float = Field(..., description="Processing time in seconds")
+    worker_id: Optional[int] = Field(None, description="Worker ID that processed this URL")
+    proxy_used: Optional[str] = Field(None, description="Proxy used for this request")
 
     class Config:
         json_schema_extra = {
@@ -91,8 +94,11 @@ class ExtractionResult(BaseModel):
                 "siren": "123456789",
                 "tva": "FR12345678901",
                 "success": True,
+                "status": "success",
                 "error": None,
-                "processing_time": 1.234
+                "processing_time": 1.234,
+                "worker_id": 0,
+                "proxy_used": "142.111.48.253:7030"
             }
         }
 
