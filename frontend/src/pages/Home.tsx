@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { FileUpload } from '../components/FileUpload/FileUpload';
 import { ColumnSelector } from '../components/ColumnSelector/ColumnSelector';
 import { ProcessingQueue } from '../components/Processing/ProcessingQueue';
+import { ResultsTable } from '../components/Results/ResultsTable';
+import { ResultsDownload } from '../components/Results/ResultsDownload';
 import { UploadedFile } from '../types/file.types';
 import { ColumnSelection } from '../types/column.types';
 import { useProcessing } from '../hooks/useProcessing';
@@ -47,7 +49,7 @@ export function Home() {
   const showProcessingQueue = state.status === 'processing' || state.status === 'completed';
 
   return (
-    <div className="max-w-4xl mx-auto p-8">
+    <div className="max-w-7xl mx-auto p-8">
       <h1 className="text-3xl font-bold mb-8">SIRET Extractor</h1>
 
       <div className="space-y-8">
@@ -87,32 +89,42 @@ export function Home() {
         )}
 
         {showProcessingQueue && (
-          <section>
-            <h2 className="text-xl font-semibold mb-4">
-              {state.status === 'processing' ? '3. Processing' : '3. Results'}
-            </h2>
-            <ProcessingQueue state={state} onCancel={cancel} />
+          <>
+            <section>
+              <h2 className="text-xl font-semibold mb-4">
+                {state.status === 'processing' ? '3. Processing' : '3. Results'}
+              </h2>
+              <ProcessingQueue state={state} onCancel={cancel} />
+            </section>
 
-            {state.status === 'completed' && (
-              <div className="mt-4 space-y-4">
-                <div className="p-4 bg-gray-50 rounded-lg">
-                  <p className="text-sm text-gray-700 mb-2">
-                    <strong>Processing complete!</strong> {state.progress.processedUrls} URLs processed.
-                  </p>
-                  <p className="text-xs text-gray-600">
-                    Phase 4 will add results table and download functionality.
-                  </p>
-                </div>
+            {state.status === 'completed' && uploadedFile && (
+              <>
+                <section>
+                  <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+                    <p className="text-green-800 font-medium">
+                      Processing complete! {state.progress.processedUrls} URLs processed.
+                    </p>
+                  </div>
 
-                <button
-                  className="w-full bg-gray-600 text-white py-3 px-6 rounded-lg font-medium hover:bg-gray-700 transition-colors"
-                  onClick={handleReset}
-                >
-                  Process Another File
-                </button>
-              </div>
+                  <ResultsTable results={state.results} />
+                </section>
+
+                <section>
+                  <h2 className="text-xl font-semibold mb-4">4. Download Results</h2>
+                  <ResultsDownload originalFile={uploadedFile} results={state.results} />
+                </section>
+
+                <section>
+                  <button
+                    className="w-full bg-gray-600 text-white py-3 px-6 rounded-lg font-medium hover:bg-gray-700 transition-colors"
+                    onClick={handleReset}
+                  >
+                    Process Another File
+                  </button>
+                </section>
+              </>
             )}
-          </section>
+          </>
         )}
       </div>
     </div>
