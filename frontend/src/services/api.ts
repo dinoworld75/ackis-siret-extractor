@@ -1,5 +1,5 @@
 import axios, { AxiosInstance, AxiosError } from 'axios';
-import { BatchExtractionResponse, SingleExtractionResponse, ExtractionResult } from '../types/api.types';
+import { BatchExtractionResponse, BatchStartResponse, BatchProgress, SingleExtractionResponse, ExtractionResult } from '../types/api.types';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 const BATCH_SIZE = Number(import.meta.env.VITE_BATCH_SIZE) || 100;
@@ -112,7 +112,7 @@ class APIClient {
     urls: string[],
     concurrentWorkers?: number,
     proxies?: Array<{host: string; port: number; username?: string; password?: string}>
-  ): Promise<BatchExtractionResponse> {
+  ): Promise<BatchStartResponse> {
     try {
       const payload: any = { urls };
 
@@ -128,7 +128,7 @@ class APIClient {
         console.log(`[API] Using ${proxies.length} proxies for rotation`);
       }
 
-      const response = await this.client.post<BatchExtractionResponse>(
+      const response = await this.client.post<BatchStartResponse>(
         '/api/extract/batch',
         payload
       );
@@ -136,6 +136,42 @@ class APIClient {
     } catch (error) {
       if (error instanceof AxiosError) {
         console.error('[API] Batch extraction error:', {
+          message: error.message,
+          status: error.response?.status,
+          data: error.response?.data,
+        });
+      }
+      throw error;
+    }
+  }
+
+  async getBatchProgress(batchId: string): Promise<BatchProgress> {
+    try {
+      const response = await this.client.get<BatchProgress>(
+        `/api/extract/batch/${batchId}/progress`
+      );
+      return response.data;
+    } catch (error) {
+      if (error instanceof AxiosError) {
+        console.error('[API] Get batch progress error:', {
+          message: error.message,
+          status: error.response?.status,
+          data: error.response?.data,
+        });
+      }
+      throw error;
+    }
+  }
+
+  async getBatchResults(batchId: string): Promise<BatchExtractionResponse> {
+    try {
+      const response = await this.client.get<BatchExtractionResponse>(
+        `/api/extract/batch/${batchId}/results`
+      );
+      return response.data;
+    } catch (error) {
+      if (error instanceof AxiosError) {
+        console.error('[API] Get batch results error:', {
           message: error.message,
           status: error.response?.status,
           data: error.response?.data,
