@@ -15,6 +15,7 @@ services:
       - API_PORT=8000
       - API_WORKERS=4
       - DEBUG=False
+      - ALLOWED_ORIGINS=https://siretextractor.lasupermachine.fr
 
       # Scraper Configuration
       - MAX_CONCURRENT_WORKERS=10
@@ -26,8 +27,8 @@ services:
       - HEADLESS=True
       - BROWSER_TYPE=chromium
 
-      # Proxy Configuration (optional)
-      - PROXY_ROTATION_ENABLED=False
+      # Proxy Configuration
+      - PROXY_ROTATION_ENABLED=True
       - PROXY_LIST=
 
       # Rate Limiting
@@ -75,6 +76,10 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        - VITE_API_BASE_URL=/api
+        - VITE_MAX_FILE_SIZE=10485760
+        - VITE_BATCH_SIZE=100
     image: siret-extractor-frontend:1.0.0
     container_name: siret-extractor-frontend
     ports:
@@ -84,6 +89,8 @@ services:
         condition: service_healthy
     environment:
       - VITE_API_BASE_URL=/api
+      - VITE_MAX_FILE_SIZE=10485760
+      - VITE_BATCH_SIZE=100
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
       interval: 30s
