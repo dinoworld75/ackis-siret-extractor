@@ -50,6 +50,7 @@ export function extractUrls(
   selectedColumns: ColumnSelection[]
 ): ExtractedUrl[] {
   const extractedUrls: ExtractedUrl[] = [];
+  const seenUrls = new Set<string>();
 
   // Filter and sort selected columns by priority (1 = highest)
   const sortedColumns = selectedColumns
@@ -84,11 +85,19 @@ export function extractUrls(
       const cellValue = row[column.index];
       if (cellValue && isValidUrl(cellValue)) {
         const normalizedUrl = normalizeUrl(cellValue);
-        extractedUrls.push({
-          url: normalizedUrl,
-          rowIndex: rowIndex,
-          columnName: column.name,
-        });
+
+        // Skip duplicate URLs
+        if (!seenUrls.has(normalizedUrl)) {
+          seenUrls.add(normalizedUrl);
+          extractedUrls.push({
+            url: normalizedUrl,
+            rowIndex: rowIndex,
+            columnName: column.name,
+          });
+        } else {
+          console.debug(`[URL Extractor] Skipping duplicate URL: ${normalizedUrl} at row ${rowIndex}`);
+        }
+
         foundUrl = true;
         break; // Found URL in this column, move to next row
       }
@@ -99,8 +108,9 @@ export function extractUrls(
     }
   }
 
+  const duplicatesSkipped = (file.data.length - 1) - seenUrls.size;
   console.log(
-    `[URL Extractor] Extracted ${extractedUrls.length} URLs from ${file.data.length - 1} rows`
+    `[URL Extractor] Extracted ${extractedUrls.length} unique URLs from ${file.data.length - 1} rows (${duplicatesSkipped} duplicates skipped)`
   );
 
   return extractedUrls;
