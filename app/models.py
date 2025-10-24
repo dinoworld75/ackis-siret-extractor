@@ -172,6 +172,15 @@ class HealthResponse(BaseModel):
         }
 
 
+class LogEntry(BaseModel):
+    """A single log entry for real-time processing logs"""
+    timestamp: float = Field(..., description="Unix timestamp when log was created")
+    url: str = Field(..., description="URL being processed")
+    status: str = Field(..., description="Status: processing, success, no_data, error")
+    message: str = Field(..., description="Log message")
+    worker_id: Optional[int] = Field(None, description="Worker ID that processed this URL")
+
+
 class BatchProgress(BaseModel):
     """Real-time progress tracking for batch extraction"""
     batch_id: str = Field(..., description="Unique batch ID")
@@ -183,6 +192,7 @@ class BatchProgress(BaseModel):
     start_time: float = Field(..., description="Start time (Unix timestamp)")
     elapsed_time: float = Field(..., description="Elapsed time in seconds")
     estimated_time_remaining: Optional[float] = Field(None, description="Estimated time remaining in seconds")
+    recent_logs: List[LogEntry] = Field(default_factory=list, description="Recent processing logs (last 50)")
 
     class Config:
         json_schema_extra = {

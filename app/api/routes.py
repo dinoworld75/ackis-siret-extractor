@@ -6,6 +6,7 @@ import logging
 import uuid
 from typing import List, Dict, Optional
 from dataclasses import dataclass, field
+from collections import deque
 from fastapi import APIRouter, HTTPException, status, BackgroundTasks
 
 from app.models import (
@@ -16,6 +17,7 @@ from app.models import (
     BatchStartResponse,
     HealthResponse,
     BatchProgress,
+    LogEntry,
 )
 from app.scraper import PlaywrightScraper
 from app.scraper.proxy_manager import ProxyManager
@@ -38,6 +40,7 @@ class BatchState:
     in_progress: bool = True
     start_time: float = field(default_factory=time.time)
     results: List[ExtractionResult] = field(default_factory=list)
+    recent_logs: deque = field(default_factory=lambda: deque(maxlen=50))
 
 
 # In-memory storage for batch progress and results
@@ -174,7 +177,8 @@ async def get_batch_progress(batch_id: str):
         in_progress=state.in_progress,
         start_time=state.start_time,
         elapsed_time=elapsed,
-        estimated_time_remaining=estimated_remaining
+        estimated_time_remaining=estimated_remaining,
+        recent_logs=list(state.recent_logs)  # Convert deque to list for JSON serialization
     )
 
 
@@ -210,10 +214,17 @@ async def process_batch_background(
 
             # Get assigned proxy for this worker
             proxy_used = worker_proxies.get(worker_id) if worker_proxies else None
-            if proxy_used:
-                logger.info(f"[Worker {worker_id}] Processing URL {index + 1}/{len(urls)}: {url} (Proxy: {proxy_used[:20]}...)")
-            else:
-                logger.info(f"[Worker {worker_id}] Processing URL {index + 1}/{len(urls)}: {url} (No proxy)")
+            proxy_display = f"Proxy: {proxy_used[:20]}..." if proxy_used else "No proxy"
+            logger.info(f"[Worker {worker_id}] Processing URL {index + 1}/{len(urls)}: {url} ({proxy_display})")
+
+            # Add log entry for real-time streaming
+            state.recent_logs.append(LogEntry(
+                timestamp=time.time(),
+                url=url,
+                status="processing",
+                message=f"Worker {worker_id} processing ({proxy_display})",
+                worker_id=worker_id
+            ))
 
             try:
                 # Use shared scraper with assigned proxy (no browser launch overhead)
@@ -243,6 +254,15 @@ async def process_batch_background(
                 status_emoji = "✓" if success else ("⚠" if status_str == "no_data" else "✗")
                 logger.info(f"[Worker {worker_id}] {status_emoji} Completed {url} in {processing_time:.2f}s")
 
+                # Add completion log entry
+                state.recent_logs.append(LogEntry(
+                    timestamp=time.time(),
+                    url=url,
+                    status=status_str,
+                    message=f"{status_emoji} Completed in {processing_time:.2f}s",
+                    worker_id=worker_id
+                ))
+
                 # Update progress
                 state.completed += 1
                 state.results.append(result)
@@ -255,7 +275,17 @@ async def process_batch_background(
 
             except Exception as e:
                 processing_time = time.time() - start_time
-                logger.error(f"[Worker {worker_id}] ✗ Error processing {url}: {str(e)}")
+                error_msg = str(e)
+                logger.error(f"[Worker {worker_id}] ✗ Error processing {url}: {error_msg}")
+
+                # Add error log entry
+                state.recent_logs.append(LogEntry(
+                    timestamp=time.time(),
+                    url=url,
+                    status="error",
+                    message=f"✗ Error: {error_msg[:100]}",  # Truncate long errors
+                    worker_id=worker_id
+                ))
 
                 # Update progress
                 state.completed += 1
@@ -268,7 +298,7 @@ async def process_batch_background(
                     tva=None,
                     success=False,
                     status="error",
-                    error=str(e),
+                    error=error_msg,
                     processing_time=round(processing_time, 3),
                     worker_id=worker_id,
                     proxy_used=proxy_used[:50] if proxy_used else None
