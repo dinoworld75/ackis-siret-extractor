@@ -7,8 +7,6 @@ services:
       dockerfile: Dockerfile
     image: siret-extractor-backend:1.0.0
     container_name: siret-extractor-backend
-    ports:
-      - "8000:8000"
     environment:
       # API Configuration
       - API_HOST=0.0.0.0
@@ -82,8 +80,6 @@ services:
         - VITE_BATCH_SIZE=100
     image: siret-extractor-frontend:1.0.0
     container_name: siret-extractor-frontend
-    ports:
-      - "80:80"
     depends_on:
       backend:
         condition: service_healthy
