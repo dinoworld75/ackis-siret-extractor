@@ -217,11 +217,12 @@ export function useProcessing() {
           try {
             const progress = await apiClient.getBatchProgress(batchId);
 
-            // Calculate global progress from all batches
+            // Calculate global progress from all batches using throughput-based estimation
             const elapsedTime = (Date.now() - startTime) / 1000;
-            const avgTimePerUrl = progress.completed > 0 ? elapsedTime / progress.completed : AVERAGE_TIME_PER_URL;
-            const remainingUrls = totalUrls - allResults.length;
-            const estimatedTimeRemaining = remainingUrls * avgTimePerUrl;
+            const completedCount = allResults.length;
+            const throughput = completedCount > 0 ? completedCount / elapsedTime : 1 / AVERAGE_TIME_PER_URL;
+            const remainingUrls = totalUrls - completedCount;
+            const estimatedTimeRemaining = remainingUrls / throughput;
 
             setState((prev) => ({
               status: 'processing',

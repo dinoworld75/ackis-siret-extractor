@@ -157,12 +157,13 @@ async def get_batch_progress(batch_id: str):
     current_time = time.time()
     elapsed = current_time - state.start_time
 
-    # Calculate estimated time remaining
+    # Calculate estimated time remaining using throughput-based formula
+    # This accounts for parallel processing by measuring actual URLs/second rate
     estimated_remaining = None
     if state.completed > 0 and state.in_progress:
-        avg_time_per_url = elapsed / state.completed
+        throughput = state.completed / elapsed  # URLs processed per second
         remaining_urls = state.total_urls - state.completed
-        estimated_remaining = avg_time_per_url * remaining_urls
+        estimated_remaining = remaining_urls / throughput if throughput > 0 else None
 
     return BatchProgress(
         batch_id=state.batch_id,
