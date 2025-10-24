@@ -95,14 +95,8 @@ export function History() {
           <div>
             <h3 className="text-xl font-semibold mb-4">Download Results</h3>
             <ResultsDownload
-              originalFile={{
-                name: selectedEntry.fileName,
-                size: selectedEntry.fileSize,
-                type: selectedEntry.fileType,
-                data: selectedEntry.originalFileData || [],
-                headers: [],
-                rowCount: selectedEntry.totalUrls,
-              }}
+              originalFileData={selectedEntry.originalFileData || []}
+              originalFileName={selectedEntry.fileName}
               results={selectedEntry.results}
             />
           </div>

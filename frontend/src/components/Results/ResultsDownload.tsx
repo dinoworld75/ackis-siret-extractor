@@ -1,21 +1,30 @@
 import { useState } from 'react';
-import { UploadedFile } from '../../types/file.types';
 import { ExtractionResult } from '../../types/api.types';
 import { exportToCSV, exportToXLSX } from '../../services/fileExporter';
 
 interface ResultsDownloadProps {
-  originalFile: UploadedFile;
+  originalFileData: any[][];
+  originalFileName: string;
   results: ExtractionResult[];
 }
 
-export function ResultsDownload({ originalFile, results }: ResultsDownloadProps) {
+export function ResultsDownload({ originalFileData, originalFileName, results }: ResultsDownloadProps) {
   const [onlySuccessful, setOnlySuccessful] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
 
   const handleDownloadCSV = () => {
     setIsDownloading(true);
     try {
-      exportToCSV(originalFile, results, onlySuccessful);
+      // Create a compatible UploadedFile object from the stored data
+      const fileForExport = {
+        name: originalFileName,
+        size: 0, // Not used in export
+        type: 'text/csv', // Not critical for export
+        headers: originalFileData[0] || [],
+        data: originalFileData,
+        rowCount: originalFileData.length - 1,
+      };
+      exportToCSV(fileForExport, results, onlySuccessful);
     } catch (error) {
       console.error('Failed to export CSV:', error);
       alert('Failed to export CSV. Please try again.');
@@ -27,7 +36,16 @@ export function ResultsDownload({ originalFile, results }: ResultsDownloadProps)
   const handleDownloadXLSX = () => {
     setIsDownloading(true);
     try {
-      exportToXLSX(originalFile, results, onlySuccessful);
+      // Create a compatible UploadedFile object from the stored data
+      const fileForExport = {
+        name: originalFileName,
+        size: 0, // Not used in export
+        type: 'text/csv', // Not critical for export
+        headers: originalFileData[0] || [],
+        data: originalFileData,
+        rowCount: originalFileData.length - 1,
+      };
+      exportToXLSX(fileForExport, results, onlySuccessful);
     } catch (error) {
       console.error('Failed to export XLSX:', error);
       alert('Failed to export XLSX. Please try again.');

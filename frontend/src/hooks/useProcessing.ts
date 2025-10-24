@@ -33,6 +33,8 @@ export interface ProcessingState {
   logs: ProcessingLog[];
   concurrentWorkers?: number;
   proxyCount?: number;
+  originalFileData?: any[][]; // Store original file data for download merging
+  originalFileName?: string;
 }
 
 const AVERAGE_TIME_PER_URL = 17.63; // seconds, from backend performance data
@@ -56,6 +58,8 @@ export function useProcessing() {
     logs: [],
     concurrentWorkers: undefined,
     proxyCount: undefined,
+    originalFileData: undefined,
+    originalFileName: undefined,
   });
 
 
@@ -120,6 +124,8 @@ export function useProcessing() {
           logs: [],
           concurrentWorkers: undefined,
           proxyCount: undefined,
+          originalFileData: undefined,
+          originalFileName: undefined,
         });
         return;
       }
@@ -171,6 +177,8 @@ export function useProcessing() {
         ],
         concurrentWorkers,
         proxyCount: proxies.length,
+        originalFileData: file.data,
+        originalFileName: file.name,
       });
 
       const allResults: ExtractionResult[] = [];
@@ -233,6 +241,8 @@ export function useProcessing() {
               logs: prev.logs,
               concurrentWorkers: prev.concurrentWorkers,
               proxyCount: prev.proxyCount,
+              originalFileData: prev.originalFileData,
+              originalFileName: prev.originalFileName,
             }));
 
             // Check if batch is complete
@@ -279,6 +289,8 @@ export function useProcessing() {
                 ],
                 concurrentWorkers: prev.concurrentWorkers,
                 proxyCount: prev.proxyCount,
+                originalFileData: prev.originalFileData,
+                originalFileName: prev.originalFileName,
               }));
 
               // Check if all batches are complete
@@ -316,6 +328,8 @@ export function useProcessing() {
                   ],
                   concurrentWorkers: prev.concurrentWorkers,
                   proxyCount: prev.proxyCount,
+                  originalFileData: prev.originalFileData,
+                  originalFileName: prev.originalFileName,
                 }));
               }
             }
@@ -381,6 +395,8 @@ export function useProcessing() {
       logs: [],
       concurrentWorkers: undefined,
       proxyCount: undefined,
+      originalFileData: undefined,
+      originalFileName: undefined,
     });
   }, []);
 

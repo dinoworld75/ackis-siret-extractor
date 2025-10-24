@@ -163,7 +163,7 @@ export function Home() {
               <ProcessingQueue state={state} onCancel={cancel} />
             </section>
 
-            {state.status === 'completed' && uploadedFile && (
+            {state.status === 'completed' && state.originalFileData && state.originalFileName && (
               <>
                 <section>
                   <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
@@ -182,7 +182,11 @@ export function Home() {
 
                 <section>
                   <h2 className="text-xl font-semibold mb-4">4. Download Results</h2>
-                  <ResultsDownload originalFile={uploadedFile} results={state.results} />
+                  <ResultsDownload
+                    originalFileData={state.originalFileData}
+                    originalFileName={state.originalFileName}
+                    results={state.results}
+                  />
                 </section>
 
                 <section>
