@@ -7,6 +7,9 @@ services:
       dockerfile: Dockerfile
     image: siret-extractor-backend:1.0.0
     environment:
+      # Coolify routing
+      - SERVICE_URL_BACKEND_8000
+
       # API Configuration
       - API_HOST=0.0.0.0
       - API_PORT=8000
@@ -36,18 +39,17 @@ services:
       - MAX_RETRIES=3
       - RETRY_DELAY=2
 
-    # Restart policy
     restart: unless-stopped
 
-    # Health check
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      test:
+        - CMD-SHELL
+        - 'curl -f http://127.0.0.1:8000/health'
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
 
-    # Resource limits
     deploy:
       resources:
         limits:
@@ -57,15 +59,12 @@ services:
           cpus: '1.0'
           memory: 1G
 
-    # Logging configuration
     logging:
       driver: "json-file"
       options:
         max-size: "10m"
         max-file: "3"
-        tag: "siret-extractor-backend"
 
-    # Network
     networks:
       - coolify
 
@@ -79,29 +78,36 @@ services:
         - VITE_BATCH_SIZE=100
     image: siret-extractor-frontend:1.0.0
 
-    depends_on:
-      backend:
-        condition: service_healthy
-
     environment:
+      # Coolify routing - PATTERN DASHY
+      - SERVICE_URL_FRONTEND_80
+
       # Vite configuration
       - VITE_API_BASE_URL=/api
       - VITE_MAX_FILE_SIZE=10485760
       - VITE_BATCH_SIZE=100
 
+    depends_on:
+      backend:
+        condition: service_healthy
+
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
+      test:
+        - CMD-SHELL
+        - 'wget -qO- http://127.0.0.1:80/'
       interval: 30s
-      timeout: 3s
+      timeout: 10s
       retries: 3
-      start_period: 5s
+      start_period: 10s
+
     restart: unless-stopped
+
     logging:
       driver: "json-file"
       options:
         max-size: "10m"
         max-file: "3"
-        tag: "siret-extractor-frontend"
+
     networks:
       - coolify
 
