@@ -43,7 +43,7 @@ class ProxyConfig(BaseModel):
 class BatchExtractionRequest(BaseModel):
     """Batch URL extraction request"""
     urls: List[HttpUrl] = Field(..., min_length=1, max_length=100, description="List of URLs to process")
-    concurrent_workers: int = Field(10, ge=1, le=20, description="Number of concurrent workers (1-20)")
+    concurrent_workers: int = Field(10, ge=1, le=50, description="Number of concurrent workers (1-50)")
     proxies: Optional[List[ProxyConfig]] = Field(None, description="Optional list of proxies for rotation")
 
     @validator("urls")

@@ -110,13 +110,13 @@ export function Settings() {
               <input
                 type="range"
                 min="1"
-                max="20"
+                max="50"
                 value={settings.concurrentWorkers}
                 onChange={(e) => setSettings({ ...settings, concurrentWorkers: parseInt(e.target.value) })}
                 className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
               />
               <p className="text-xs text-gray-500 mt-1">
-                Number of parallel workers for extraction (1-20). Higher values = faster processing but more resources.
+                Number of parallel workers for extraction (1-50). Higher values = faster processing but more resources.
               </p>
             </div>
 
@@ -197,7 +197,7 @@ export function Settings() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Upload Proxy List (CSV format)
+                Upload Proxy List (.csv or .txt format)
               </label>
               <div className="flex gap-2">
                 <input
@@ -215,7 +215,7 @@ export function Settings() {
                 </button>
               </div>
               <p className="text-xs text-gray-500 mt-1">
-                CSV file with one proxy per line (format: host:port or user:pass@host:port)
+                .csv or .txt file with one proxy per line (format: host:port:username:password)
               </p>
             </div>
 
