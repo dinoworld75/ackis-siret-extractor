@@ -54,8 +54,8 @@ app = FastAPI(
     title="SIRET Extractor API",
     description="Extract SIRET, SIREN, and TVA numbers from French company websites",
     version=__version__,
-    docs_url="/docs",
-    redoc_url="/redoc",
+    docs_url="/api/docs",
+    redoc_url="/api/redoc",
 )
 
 # Add CORS middleware

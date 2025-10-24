@@ -45,7 +45,7 @@ class BatchState:
 batch_store: Dict[str, BatchState] = {}
 
 
-@router.get("/health", response_model=HealthResponse, tags=["Health"])
+@router.get("/api/health", response_model=HealthResponse, tags=["Health"])
 async def health_check():
     """
     Health check endpoint.

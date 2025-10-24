@@ -53,7 +53,7 @@ export function ApiDocs() {
                 GET
               </span>
               <div>
-                <code className="text-sm font-mono text-gray-900">/health</code>
+                <code className="text-sm font-mono text-gray-900">/api/health</code>
                 <p className="text-sm text-gray-600 mt-1">Health check endpoint</p>
               </div>
             </div>
