@@ -7,7 +7,9 @@ export function ApiDocs() {
   const apiBaseUrl = import.meta.env.VITE_API_BASE_URL !== undefined
     ? import.meta.env.VITE_API_BASE_URL
     : 'http://localhost:8000';
-  const docsUrl = `${apiBaseUrl}/docs`;
+  // In production (apiBaseUrl = ""), use /backend-docs (nginx proxies to backend:8000/docs)
+  // In development, use localhost:8000/docs directly
+  const docsUrl = apiBaseUrl === '' ? '/backend-docs' : `${apiBaseUrl}/docs`;
 
   return (
     <PageLayout title="API Documentation">
