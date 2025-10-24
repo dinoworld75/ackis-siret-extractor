@@ -1,7 +1,10 @@
 import axios, { AxiosInstance, AxiosError } from 'axios';
 import { BatchExtractionResponse, BatchStartResponse, BatchProgress, SingleExtractionResponse, ExtractionResult } from '../types/api.types';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+// Use !== undefined to allow empty string (for relative URLs)
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL !== undefined
+  ? import.meta.env.VITE_API_BASE_URL
+  : 'http://localhost:8000';
 const BATCH_SIZE = Number(import.meta.env.VITE_BATCH_SIZE) || 100;
 
 interface RetryConfig {
