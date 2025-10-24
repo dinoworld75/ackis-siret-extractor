@@ -200,33 +200,28 @@ class PlaywrightScraper:
             if any(identifiers.values()):
                 return identifiers
 
-            # If no identifiers found, try legal pages
+            # If no identifiers found, try legal pages IN PARALLEL
             parsed_url = urlparse(url)
             base_url = f"{parsed_url.scheme}://{parsed_url.netloc}"
 
-            pages_checked = 1
-            for legal_path in LEGAL_PATHS:
-                if pages_checked >= MAX_LEGAL_PAGES_TO_CHECK:
-                    break
-
+            # Create tasks for all legal pages to scrape concurrently
+            async def scrape_legal_page(legal_path: str):
+                """Scrape a single legal page, return identifiers or None on error"""
                 legal_url = urljoin(base_url, legal_path)
-
                 try:
-                    identifiers = await self._scrape_single_page(page, legal_url)
-                    pages_checked += 1
+                    return await self._scrape_single_page(page, legal_url)
+                except (PlaywrightTimeoutError, Exception):
+                    # Page not found, timeout, or other error
+                    return {'siret': None, 'siren': None, 'tva': None}
 
-                    # If we found identifiers, return immediately
-                    if any(identifiers.values()):
-                        return identifiers
+            # Limit to MAX_LEGAL_PAGES_TO_CHECK and scrape all in parallel
+            legal_paths_to_check = LEGAL_PATHS[:MAX_LEGAL_PAGES_TO_CHECK]
+            results = await asyncio.gather(*[scrape_legal_page(path) for path in legal_paths_to_check])
 
-                except PlaywrightTimeoutError:
-                    # Page not found or timeout, continue to next
-                    pages_checked += 1
-                    continue
-                except Exception:
-                    # Other error, continue to next
-                    pages_checked += 1
-                    continue
+            # Return first result with identifiers found
+            for result in results:
+                if any(result.values()):
+                    return result
 
             # Return empty result if nothing found
             return {

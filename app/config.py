@@ -19,8 +19,8 @@ class Settings(BaseSettings):
     # Scraper Configuration
     max_concurrent_workers: int = Field(default=10, env="MAX_CONCURRENT_WORKERS")
     request_timeout: int = Field(default=30000, env="REQUEST_TIMEOUT")
-    navigation_timeout: int = Field(default=60000, env="NAVIGATION_TIMEOUT")
-    page_load_timeout: int = Field(default=30000, env="PAGE_LOAD_TIMEOUT")
+    navigation_timeout: int = Field(default=20000, env="NAVIGATION_TIMEOUT")  # Reduced from 60s to 20s
+    page_load_timeout: int = Field(default=10000, env="PAGE_LOAD_TIMEOUT")  # Reduced from 30s to 10s
 
     # Proxy Configuration
     proxy_list: List[str] = Field(default_factory=list, env="PROXY_LIST")
