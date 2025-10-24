@@ -21,7 +21,10 @@ SIRET Extractor is a complete full-stack application that automatically discover
 **Key Capabilities:**
 - Upload CSV/XLSX files with company URLs
 - Select and prioritize URL columns with drag-and-drop interface
+- Automatic URL deduplication (skips duplicate URLs before processing)
 - Process URLs in batches (up to 100 per batch)
+- Configurable concurrent workers (1-50 workers)
+- Proxy support with rotation (.txt and .csv formats)
 - Real-time progress tracking with detailed status updates
 - Download enriched files with extracted identifiers
 - Store processing history locally (IndexedDB)
@@ -35,10 +38,13 @@ SIRET Extractor is a complete full-stack application that automatically discover
 ### Frontend Features
 - **File Upload** - Drag-and-drop CSV/XLSX file upload with validation (max 10MB)
 - **Column Selection** - Interactive column selector with drag-and-drop prioritization
+- **URL Deduplication** - Automatic removal of duplicate URLs before batch processing
 - **Real-time Processing** - Live progress tracking with batch status and percentage
 - **Results Display** - Comprehensive table view with filtering and sorting
 - **File Export** - Download enriched CSV/XLSX files with extracted identifiers
 - **History Management** - Local storage of processing history using IndexedDB
+- **Proxy Management** - Upload and manage proxy lists (.txt or .csv format)
+- **Worker Configuration** - Adjustable concurrent workers (1-50) for optimal performance
 - **Responsive Design** - Mobile-friendly interface with Tailwind CSS
 - **Accessibility** - WCAG 2.1 AA compliant with keyboard navigation
 - **Modern Stack** - React 19, TypeScript 5.9, Vite 7, TanStack Query
@@ -47,11 +53,13 @@ SIRET Extractor is a complete full-stack application that automatically discover
 - **Intelligent Web Scraping** - Multi-tier search strategy (homepage → legal paths → footer links)
 - **Luhn Validation** - All SIRET/SIREN numbers validated with Luhn algorithm + La Poste special case
 - **Async Architecture** - Built on FastAPI and asyncio for high performance
-- **Concurrent Processing** - Worker pool for parallel URL processing (configurable 1-10 workers)
+- **Concurrent Processing** - Worker pool for parallel URL processing (configurable 1-50 workers)
+- **Proxy Rotation** - Support for proxy lists with automatic rotation (HTTP/HTTPS proxies)
 - **Anti-Bot Detection** - Detects and reports Cloudflare, reCAPTCHA, and other protections
 - **Legal Page Discovery** - Automatically finds and crawls mentions légales, CGV, CGU pages
 - **Hosting Provider Blacklist** - Filters out hosting/domain registrar info (Gestixi, OVH, Gandi, O2Switch)
 - **SPA Support** - Waits for JavaScript frameworks (React, Vue, Next.js) to render
+- **URL Validation** - Ensures unique URLs in batch requests (Pydantic validation)
 
 ### API Features
 - **RESTful API** - Clean, documented endpoints with automatic OpenAPI/Swagger docs
@@ -70,6 +78,35 @@ SIRET Extractor is a complete full-stack application that automatically discover
 - **Coolify Ready** - Pre-configured for deployment to Coolify platform
 - **Resource Management** - Automatic browser context cleanup and memory limits
 - **Graceful Shutdown** - Proper cleanup on SIGTERM/SIGINT
+
+## Recent Updates (January 2025)
+
+### v1.1.0 - Production Stability Improvements
+
+**URL Deduplication (Critical Fix)**
+- Frontend now automatically removes duplicate URLs before batch processing
+- Prevents 422 validation errors from backend
+- Logs duplicate count in console for transparency
+- Tested with 128-row CSV: 17 duplicates detected and skipped
+
+**Increased Worker Capacity**
+- Max concurrent workers increased from 20 to 50
+- Allows faster processing of large batches
+- Configurable via Settings page slider (1-50 range)
+
+**Proxy Format Clarification**
+- Settings page now clearly shows support for both .txt and .csv formats
+- Format: `host:port:username:password` (one proxy per line)
+- Both formats work with file upload input
+
+**Bug Fixes**
+- Fixed popup closing immediately after CSV upload (was caused by 422 errors)
+- Fixed batch processing for large CSV files with duplicate URLs
+- Improved error handling and user feedback
+
+**Known Issues**
+- Progress polling may show 404 errors due to in-memory batch storage
+- Recommended fix: Implement Redis for production persistence
 
 ## Quick Start
 
@@ -198,7 +235,7 @@ DEBUG=false                # Debug mode (true for development)
 
 ### Scraper Settings
 ```bash
-MAX_CONCURRENT_WORKERS=10  # Max concurrent scraping workers
+MAX_CONCURRENT_WORKERS=50  # Max concurrent scraping workers (1-50)
 REQUEST_TIMEOUT=30000      # HTTP request timeout (ms)
 NAVIGATION_TIMEOUT=60000   # Page navigation timeout (ms)
 PAGE_LOAD_TIMEOUT=30000    # Page load timeout (ms)
@@ -736,11 +773,12 @@ Tested on 100 real French company websites from production database:
 
 ### Optimization Tips
 
-1. **Increase concurrent workers** for batch processing (default: 3, max: 10)
+1. **Increase concurrent workers** for batch processing (default: 10, max: 50)
 2. **Enable headless mode** in production (default: true)
-3. **Use proxy rotation** to avoid rate limiting (optional)
+3. **Use proxy rotation** to avoid rate limiting (supports .txt and .csv formats)
 4. **Adjust timeouts** based on target websites
 5. **Scale horizontally** with Docker/Kubernetes for high volume
+6. **Upload large CSV files** - Frontend automatically deduplicates URLs before processing
 
 ## Limitations
 
@@ -750,6 +788,11 @@ Tested on 100 real French company websites from production database:
 - Current baseline: **38% success rate** on diverse French company websites
 - **53% no data found** - Identifiers not present or not accessible
 - **9% errors** - Connection issues, timeouts, site unavailable
+
+**Progress Tracking:**
+- In-memory batch storage may lose state on backend restarts
+- Progress polling may show 404 errors intermittently
+- Recommended: Implement Redis for production persistence
 
 **Anti-Bot Protection:**
 - Sites with Cloudflare challenge: May be blocked
