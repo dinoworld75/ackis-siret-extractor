@@ -82,6 +82,7 @@ services:
       backend:
         condition: service_healthy
     environment:
+      - SERVICE_URL_FRONTEND_80
       - VITE_API_BASE_URL=/api
       - VITE_MAX_FILE_SIZE=10485760
       - VITE_BATCH_SIZE=100
