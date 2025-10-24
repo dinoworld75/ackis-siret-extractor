@@ -36,6 +36,9 @@ services:
       - MAX_RETRIES=3
       - RETRY_DELAY=2
 
+      # Coolify routing - Backend API accessible via /api
+      - SERVICE_FQDN_BACKEND_8000=/api
+
     # Restart policy
     restart: unless-stopped
 
@@ -78,32 +81,25 @@ services:
         - VITE_MAX_FILE_SIZE=10485760
         - VITE_BATCH_SIZE=100
     image: siret-extractor-frontend:1.0.0
+
+    # Expose port 80 (Coolify needs this to know which port to route to)
+    ports:
+      - "80"
+
     depends_on:
       backend:
         condition: service_healthy
+
     environment:
-      - SERVICE_URL_FRONTEND_80
+      # Coolify routing - Frontend accessible via main domain
+      - SERVICE_FQDN_FRONTEND_80=https://siretextractor.lasupermachine.fr
+
+      # Vite configuration
       - VITE_API_BASE_URL=/api
       - VITE_MAX_FILE_SIZE=10485760
       - VITE_BATCH_SIZE=100
 
-    # Traefik labels - Manual fix for Coolify custom domain bug
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.middlewares.gzip.compress=true"
-      - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
-      - "traefik.http.routers.http-0-frontend.entryPoints=http"
-      - "traefik.http.routers.http-0-frontend.middlewares=redirect-to-https"
-      - "traefik.http.routers.http-0-frontend.rule=Host(`siretextractor.lasupermachine.fr`) && PathPrefix(`/`)"
-      - "traefik.http.routers.http-0-frontend.service=http-0-frontend"
-      - "traefik.http.routers.https-0-frontend.entryPoints=https"
-      - "traefik.http.routers.https-0-frontend.middlewares=gzip"
-      - "traefik.http.routers.https-0-frontend.rule=Host(`siretextractor.lasupermachine.fr`) && PathPrefix(`/`)"
-      - "traefik.http.routers.https-0-frontend.service=https-0-frontend"
-      - "traefik.http.routers.https-0-frontend.tls.certresolver=letsencrypt"
-      - "traefik.http.routers.https-0-frontend.tls=true"
-      - "traefik.http.services.http-0-frontend.loadbalancer.server.port=80"
-      - "traefik.http.services.https-0-frontend.loadbalancer.server.port=80"
+    # NO manual Traefik labels - Coolify generates them automatically
 
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
