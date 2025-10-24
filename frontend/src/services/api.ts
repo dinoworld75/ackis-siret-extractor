@@ -89,6 +89,8 @@ class APIClient {
         status: data.success ? 'success' : (hasData ? 'success' : (data.error ? 'error' : 'no_data')),
         error: data.error,
         processing_time: data.processing_time,
+        worker_id: data.worker_id ?? null,
+        proxy_used: data.proxy_used ?? null,
         data: {
           siret: data.siret,
           siren: data.siren,

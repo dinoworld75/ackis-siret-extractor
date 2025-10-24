@@ -49,6 +49,8 @@ describe('fileExporter', () => {
           status: 'success',
           error: null,
           processing_time: 5.5,
+        worker_id: null,
+        proxy_used: null,
         },
         {
           url: 'https://example.org',
@@ -58,6 +60,8 @@ describe('fileExporter', () => {
           status: 'no_data',
           error: null,
           processing_time: 3.2,
+        worker_id: null,
+        proxy_used: null,
         },
       ];
 
@@ -163,6 +167,8 @@ describe('fileExporter', () => {
           status: 'success',
           error: null,
           processing_time: 5.5,
+        worker_id: null,
+        proxy_used: null,
         },
         {
           url: 'http://failure.com',
@@ -172,6 +178,8 @@ describe('fileExporter', () => {
           status: 'error',
           error: 'Connection timeout',
           processing_time: 30.0,
+        worker_id: null,
+        proxy_used: null,
         },
         {
           url: 'http://nodata.com',
@@ -181,6 +189,8 @@ describe('fileExporter', () => {
           status: 'no_data',
           error: null,
           processing_time: 2.0,
+        worker_id: null,
+        proxy_used: null,
         },
       ];
 
@@ -291,6 +301,8 @@ describe('fileExporter', () => {
           status: 'success',
           error: null,
           processing_time: 5.5,
+        worker_id: null,
+        proxy_used: null,
         },
       ];
 
@@ -333,6 +345,8 @@ describe('fileExporter', () => {
           status: 'success',
           error: null,
           processing_time: 5.5,
+        worker_id: null,
+        proxy_used: null,
         },
       ];
 
