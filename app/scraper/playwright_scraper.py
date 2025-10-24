@@ -3,13 +3,46 @@
 import asyncio
 import random
 from typing import Dict, Optional, List
-from playwright.async_api import async_playwright, Browser, BrowserContext, Page, TimeoutError as PlaywrightTimeoutError
-from tenacity import retry, stop_after_attempt, wait_exponential
+from playwright.async_api import async_playwright, Browser, BrowserContext, Page, TimeoutError as PlaywrightTimeoutError, Error as PlaywrightError
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception
 
 from app.config import settings, USER_AGENTS, SEARCH_SELECTORS, LEGAL_PATHS, MAX_LEGAL_PAGES_TO_CHECK
 from .extractors import extract_identifiers, search_in_priority_areas
 from .proxy_manager import ProxyManager
 from urllib.parse import urljoin, urlparse
+
+
+def should_retry_exception(exception: Exception) -> bool:
+    """
+    Determine if an exception is worth retrying.
+    Returns False for permanent failures (404, DNS errors, connection refused).
+    Returns True for temporary failures (timeouts, 5xx errors).
+    """
+    if not isinstance(exception, Exception):
+        return True
+
+    error_str = str(exception).lower()
+
+    # Don't retry permanent failures
+    permanent_errors = [
+        'net::err_name_not_resolved',  # DNS failure
+        'net::err_connection_refused',  # Connection refused
+        'net::err_connection_closed',  # Connection closed
+        'net::err_cert_',  # Certificate errors
+        'ns_error_unknown_host',  # Firefox DNS failure
+        '404',  # Page not found
+        'not found',
+        'dns',
+        'enotfound',
+        'econnrefused',
+    ]
+
+    for permanent_error in permanent_errors:
+        if permanent_error in error_str:
+            return False
+
+    # Retry timeouts and other temporary errors
+    return True
 
 
 class PlaywrightScraper:
@@ -25,6 +58,9 @@ class PlaywrightScraper:
         self.proxy_manager = proxy_manager or ProxyManager()
         self.browser: Optional[Browser] = None
         self.playwright = None
+        self.context_pool: List[BrowserContext] = []
+        self.context_pool_lock = asyncio.Lock()
+        self.pool_size = settings.max_concurrent_workers
 
     async def __aenter__(self):
         """Async context manager entry"""
@@ -36,7 +72,7 @@ class PlaywrightScraper:
         await self.close()
 
     async def start(self) -> None:
-        """Start the browser instance"""
+        """Start the browser instance and initialize context pool"""
         if self.playwright is None:
             self.playwright = await async_playwright().start()
 
@@ -51,8 +87,21 @@ class PlaywrightScraper:
                 ]
             )
 
+            # Pre-create context pool for concurrent workers
+            for _ in range(self.pool_size):
+                context = await self._create_context_for_pool()
+                self.context_pool.append(context)
+
     async def close(self) -> None:
-        """Close the browser instance"""
+        """Close all browser contexts and the browser instance"""
+        # Close all contexts in the pool
+        for context in self.context_pool:
+            try:
+                await context.close()
+            except Exception:
+                pass  # Ignore errors when closing contexts
+        self.context_pool.clear()
+
         if self.browser:
             await self.browser.close()
             self.browser = None
@@ -61,9 +110,9 @@ class PlaywrightScraper:
             await self.playwright.stop()
             self.playwright = None
 
-    async def _create_context(self, proxy: Optional[str] = None) -> BrowserContext:
+    async def _create_context_for_pool(self, proxy: Optional[str] = None) -> BrowserContext:
         """
-        Create a new browser context with random user agent.
+        Create a new browser context for the pool with random user agent.
 
         Args:
             proxy: Proxy URL to use for this context (format: http://user:pass@host:port or http://host:port)
@@ -99,6 +148,41 @@ class PlaywrightScraper:
             context_options['proxy'] = proxy_config
 
         return await self.browser.new_context(**context_options)
+
+    async def _get_context_from_pool(self) -> BrowserContext:
+        """
+        Get an available context from the pool (round-robin).
+
+        Returns:
+            Browser context from the pool
+        """
+        async with self.context_pool_lock:
+            # Simple round-robin: pop from front, use it, and it will be returned to the back later
+            if not self.context_pool:
+                # Fallback: create a new context if pool is empty
+                return await self._create_context_for_pool()
+
+            # Get next context from pool
+            context = self.context_pool.pop(0)
+            return context
+
+    async def _return_context_to_pool(self, context: BrowserContext) -> None:
+        """
+        Return a context to the pool after use.
+
+        Args:
+            context: Browser context to return
+        """
+        async with self.context_pool_lock:
+            # Close all pages in the context to free resources
+            for page in context.pages:
+                try:
+                    await page.close()
+                except Exception:
+                    pass  # Ignore errors when closing pages
+
+            # Return context to the back of the pool
+            self.context_pool.append(context)
 
     async def _extract_page_content(self, page: Page) -> Dict[str, str]:
         """
@@ -167,12 +251,14 @@ class PlaywrightScraper:
     @retry(
         stop=stop_after_attempt(settings.max_retries),
         wait=wait_exponential(multiplier=settings.retry_delay, min=2, max=10),
+        retry=retry_if_exception(should_retry_exception),
         reraise=True
     )
     async def scrape_url(self, url: str, proxy: Optional[str] = None) -> Dict[str, Optional[str]]:
         """
         Scrape a URL and extract SIRET/SIREN/TVA numbers.
         Tries the main URL first, then legal pages if no identifiers found.
+        Uses context pool for better performance.
 
         Args:
             url: URL to scrape
@@ -188,7 +274,8 @@ class PlaywrightScraper:
         if proxy is None and self.proxy_manager.is_enabled():
             proxy = self.proxy_manager.get_next_proxy()
 
-        context = await self._create_context(proxy=proxy)
+        # Get context from pool instead of creating a new one
+        context = await self._get_context_from_pool()
 
         try:
             page = await context.new_page()
@@ -231,7 +318,8 @@ class PlaywrightScraper:
             }
 
         finally:
-            await context.close()
+            # Return context to pool instead of closing it
+            await self._return_context_to_pool(context)
 
     async def scrape_urls(self, urls: List[str]) -> List[Dict[str, Optional[str]]]:
         """
