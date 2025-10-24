@@ -169,13 +169,14 @@ class PlaywrightScraper:
         wait=wait_exponential(multiplier=settings.retry_delay, min=2, max=10),
         reraise=True
     )
-    async def scrape_url(self, url: str) -> Dict[str, Optional[str]]:
+    async def scrape_url(self, url: str, proxy: Optional[str] = None) -> Dict[str, Optional[str]]:
         """
         Scrape a URL and extract SIRET/SIREN/TVA numbers.
         Tries the main URL first, then legal pages if no identifiers found.
 
         Args:
             url: URL to scrape
+            proxy: Optional proxy URL to use (overrides proxy_manager)
 
         Returns:
             Dictionary with extracted identifiers
@@ -183,7 +184,10 @@ class PlaywrightScraper:
         Raises:
             Exception: If scraping fails after retries
         """
-        proxy = self.proxy_manager.get_next_proxy() if self.proxy_manager.is_enabled() else None
+        # Use provided proxy, or fall back to proxy_manager
+        if proxy is None and self.proxy_manager.is_enabled():
+            proxy = self.proxy_manager.get_next_proxy()
+
         context = await self._create_context(proxy=proxy)
 
         try:

@@ -189,24 +189,34 @@ async def process_batch_background(
     # Create semaphore to limit concurrent workers
     semaphore = asyncio.Semaphore(concurrent_workers)
 
+    # Create a SINGLE shared scraper for the entire batch (reuses browser)
+    scraper = PlaywrightScraper()
+    await scraper.start()
+
+    # Pre-assign proxies to workers for consistent distribution
+    worker_proxies = {}
+    if proxy_manager and proxy_manager.proxy_list:
+        for worker_id in range(concurrent_workers):
+            proxy_idx = worker_id % len(proxy_manager.proxy_list)
+            worker_proxies[worker_id] = proxy_manager.proxy_list[proxy_idx]
+            logger.info(f"[Worker {worker_id}] Assigned proxy: {worker_proxies[worker_id][:50]}")
+
     async def process_url_with_semaphore(url: str, index: int) -> ExtractionResult:
         """Process a single URL with semaphore to limit concurrency"""
         async with semaphore:
             worker_id = index % concurrent_workers
             start_time = time.time()
 
-            # Get proxy to use for this request
-            proxy_used = None
-            if proxy_manager:
-                proxy_used = proxy_manager.get_next_proxy()
-                logger.info(f"[Worker {worker_id}] Processing URL {index + 1}/{len(urls)}: {url} (Proxy: {proxy_used[:20] if proxy_used else 'None'}...)")
+            # Get assigned proxy for this worker
+            proxy_used = worker_proxies.get(worker_id) if worker_proxies else None
+            if proxy_used:
+                logger.info(f"[Worker {worker_id}] Processing URL {index + 1}/{len(urls)}: {url} (Proxy: {proxy_used[:20]}...)")
             else:
                 logger.info(f"[Worker {worker_id}] Processing URL {index + 1}/{len(urls)}: {url} (No proxy)")
 
             try:
-                # Create scraper instance with proxy manager for this worker
-                async with PlaywrightScraper(proxy_manager=proxy_manager) as scraper:
-                    identifiers = await scraper.scrape_url(url)
+                # Use shared scraper with assigned proxy (no browser launch overhead)
+                identifiers = await scraper.scrape_url(url, proxy=proxy_used)
 
                 processing_time = time.time() - start_time
 
@@ -265,16 +275,21 @@ async def process_batch_background(
                 state.results.append(result)
                 return result
 
-    # Process all URLs concurrently with limited workers
-    tasks = [process_url_with_semaphore(url, i) for i, url in enumerate(urls)]
-    await asyncio.gather(*tasks)
+    try:
+        # Process all URLs concurrently with limited workers
+        tasks = [process_url_with_semaphore(url, i) for i, url in enumerate(urls)]
+        await asyncio.gather(*tasks)
 
-    # Mark batch as complete
-    state.in_progress = False
+        # Mark batch as complete
+        state.in_progress = False
 
-    batch_duration = time.time() - state.start_time
-    logger.info(f"[Batch Extract] Completed {len(urls)} URLs in {batch_duration:.2f}s ({batch_duration/len(urls):.2f}s per URL avg) (Batch ID: {batch_id})")
-    logger.info(f"[Batch Extract] Results: {state.success} success, {state.failed} failed")
+        batch_duration = time.time() - state.start_time
+        logger.info(f"[Batch Extract] Completed {len(urls)} URLs in {batch_duration:.2f}s ({batch_duration/len(urls):.2f}s per URL avg) (Batch ID: {batch_id})")
+        logger.info(f"[Batch Extract] Results: {state.success} success, {state.failed} failed")
+    finally:
+        # Always close the shared scraper to clean up browser resources
+        await scraper.close()
+        logger.info(f"[Batch Extract] Cleaned up browser resources for batch {batch_id}")
 
 
 @router.post("/api/extract/batch", response_model=BatchStartResponse, tags=["Extraction"])
