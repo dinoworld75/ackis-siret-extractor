@@ -10,6 +10,11 @@ ARG VITE_API_BASE_URL=/api
 ARG VITE_MAX_FILE_SIZE=10485760
 ARG VITE_BATCH_SIZE=100
 
+# Set environment variables from build args (for Vite build)
+ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
+ENV VITE_MAX_FILE_SIZE=${VITE_MAX_FILE_SIZE}
+ENV VITE_BATCH_SIZE=${VITE_BATCH_SIZE}
+
 # Copy package files
 COPY package.json pnpm-lock.yaml ./
 

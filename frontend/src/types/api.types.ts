@@ -24,6 +24,8 @@ export interface SingleExtractionResponse {
   success: boolean;
   error: string | null;
   processing_time: number;
+  worker_id: number | null;
+  proxy_used: string | null;
 }
 
 export interface BatchStartResponse {
