@@ -79,7 +79,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
 # Default environment variables (can be overridden)
 ENV API_HOST=0.0.0.0 \
     API_PORT=8000 \
-    API_WORKERS=4 \
+    API_WORKERS=1 \
     DEBUG=False \
     HEADLESS=True \
     BROWSER_TYPE=chromium \
