@@ -5,6 +5,11 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
+# Declare build arguments with default values
+ARG VITE_API_BASE_URL=/api
+ARG VITE_MAX_FILE_SIZE=10485760
+ARG VITE_BATCH_SIZE=100
+
 # Copy package files
 COPY package.json pnpm-lock.yaml ./
 
