@@ -45,10 +45,23 @@ class BatchState:
 batch_store: Dict[str, BatchState] = {}
 
 
+@router.get("/health", response_model=HealthResponse, tags=["Health"])
+async def health_check_internal():
+    """
+    Internal health check endpoint for Docker healthcheck.
+
+    Returns service status and version information.
+    """
+    return HealthResponse(
+        status="healthy",
+        version=__version__
+    )
+
+
 @router.get("/api/health", response_model=HealthResponse, tags=["Health"])
 async def health_check():
     """
-    Health check endpoint.
+    External health check endpoint accessible via /api/health.
 
     Returns service status and version information.
     """
