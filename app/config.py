@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     api_port: int = Field(default=8000, env="API_PORT")
     api_workers: int = Field(default=4, env="API_WORKERS")
     debug: bool = Field(default=False, env="DEBUG")
-    allowed_origins: str = Field(default="*", env="ALLOWED_ORIGINS")
+    allowed_origins: List[str] = Field(default=["*"], env="ALLOWED_ORIGINS")
 
     # Scraper Configuration
     max_concurrent_workers: int = Field(default=10, env="MAX_CONCURRENT_WORKERS")
