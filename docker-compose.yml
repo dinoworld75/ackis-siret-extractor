@@ -70,7 +70,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        - VITE_API_BASE_URL=/api
+        - VITE_API_BASE_URL=
         - VITE_MAX_FILE_SIZE=10485760
         - VITE_BATCH_SIZE=100
     image: siret-extractor-frontend:1.0.0
@@ -78,11 +78,6 @@ services:
     environment:
       # Coolify routing - PATTERN DASHY
       - SERVICE_URL_FRONTEND_80
-
-      # Vite configuration
-      - VITE_API_BASE_URL=/api
-      - VITE_MAX_FILE_SIZE=10485760
-      - VITE_BATCH_SIZE=100
 
     depends_on:
       backend:
