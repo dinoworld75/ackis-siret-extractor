@@ -186,6 +186,7 @@ export function useProcessing() {
       const pollingIntervals = new Map<string, NodeJS.Timeout>();
       const batchIds: string[] = [];
       const batchCompletedCount = { value: 0 };
+      const seenLogKeys = new Set<string>(); // Track logs by "timestamp:url" to avoid duplicates
 
       try {
         // Step 1: Start all batches and collect batch_ids
@@ -217,6 +218,29 @@ export function useProcessing() {
           try {
             const progress = await apiClient.getBatchProgress(batchId);
 
+            // Extract new logs from backend
+            const newLogs: ProcessingLog[] = [];
+            if (progress.recent_logs) {
+              for (const logEntry of progress.recent_logs) {
+                const logKey = `${logEntry.timestamp}:${logEntry.url}`;
+                if (!seenLogKeys.has(logKey)) {
+                  seenLogKeys.add(logKey);
+
+                  // Convert backend LogEntry to frontend ProcessingLog
+                  const logType = logEntry.status === 'success' ? 'success'
+                                : logEntry.status === 'error' ? 'error'
+                                : logEntry.status === 'no_data' ? 'warning'
+                                : 'info';
+
+                  newLogs.push({
+                    timestamp: new Date(logEntry.timestamp * 1000).toLocaleTimeString('fr-FR', { hour12: false }),
+                    message: `[${logEntry.url}] ${logEntry.message}`,
+                    type: logType,
+                  });
+                }
+              }
+            }
+
             // Calculate global progress from all batches using throughput-based estimation
             const elapsedTime = (Date.now() - startTime) / 1000;
             const completedCount = allResults.length;
@@ -239,7 +263,7 @@ export function useProcessing() {
               },
               results: allResults,
               error: null,
-              logs: prev.logs,
+              logs: [...prev.logs, ...newLogs].slice(-100), // Keep last 100 logs
               concurrentWorkers: prev.concurrentWorkers,
               proxyCount: prev.proxyCount,
               originalFileData: prev.originalFileData,

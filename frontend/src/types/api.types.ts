@@ -34,6 +34,14 @@ export interface BatchStartResponse {
   total_urls: number;
 }
 
+export interface LogEntry {
+  timestamp: number;
+  url: string;
+  status: 'processing' | 'success' | 'no_data' | 'error';
+  message: string;
+  worker_id: number | null;
+}
+
 export interface BatchProgress {
   batch_id: string;
   total_urls: number;
@@ -44,6 +52,7 @@ export interface BatchProgress {
   start_time: number;
   elapsed_time: number;
   estimated_time_remaining: number | null;
+  recent_logs: LogEntry[];
 }
 
 export interface BatchExtractionResponse {
