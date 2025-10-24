@@ -3,7 +3,10 @@ import { PageLayout } from '../components/Layout/PageLayout';
 
 export function ApiDocs() {
   const [iframeError, setIframeError] = useState(false);
-  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+  // Use !== undefined to allow empty string (for relative URLs in production)
+  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL !== undefined
+    ? import.meta.env.VITE_API_BASE_URL
+    : 'http://localhost:8000';
   const docsUrl = `${apiBaseUrl}/docs`;
 
   return (
