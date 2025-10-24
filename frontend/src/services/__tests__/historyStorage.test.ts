@@ -84,8 +84,8 @@ describe('historyStorage', () => {
           status: 'success',
           error: null,
           processing_time: 5.5,
-        worker_id: null,
-        proxy_used: null,
+          worker_id: null,
+          proxy_used: null,
         },
       ];
 
