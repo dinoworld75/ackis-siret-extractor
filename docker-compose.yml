@@ -67,7 +67,7 @@ services:
 
     # Network
     networks:
-      - siret-network
+      - coolify
 
   frontend:
     build:
@@ -119,8 +119,8 @@ services:
         max-file: "3"
         tag: "siret-extractor-frontend"
     networks:
-      - siret-network
+      - coolify
 
 networks:
-  siret-network:
-    driver: bridge
+  coolify:
+    external: true
