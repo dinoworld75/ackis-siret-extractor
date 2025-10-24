@@ -7,9 +7,6 @@ services:
       dockerfile: Dockerfile
     image: siret-extractor-backend:1.0.0
     environment:
-      # Coolify routing
-      - SERVICE_URL_BACKEND_8000
-
       # API Configuration
       - API_HOST=0.0.0.0
       - API_PORT=8000
