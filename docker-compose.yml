@@ -36,9 +36,6 @@ services:
       - MAX_RETRIES=3
       - RETRY_DELAY=2
 
-      # Coolify routing - Backend API accessible via /api
-      - SERVICE_FQDN_BACKEND_8000=/api
-
     # Restart policy
     restart: unless-stopped
 
@@ -82,24 +79,15 @@ services:
         - VITE_BATCH_SIZE=100
     image: siret-extractor-frontend:1.0.0
 
-    # Expose port 80 (Coolify needs this to know which port to route to)
-    ports:
-      - "80"
-
     depends_on:
       backend:
         condition: service_healthy
 
     environment:
-      # Coolify routing - Frontend accessible via main domain
-      - SERVICE_FQDN_FRONTEND_80=https://siretextractor.lasupermachine.fr
-
       # Vite configuration
       - VITE_API_BASE_URL=/api
       - VITE_MAX_FILE_SIZE=10485760
       - VITE_BATCH_SIZE=100
-
-    # NO manual Traefik labels - Coolify generates them automatically
 
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
