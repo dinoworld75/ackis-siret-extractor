@@ -66,7 +66,7 @@ class PlaywrightScraper:
         Create a new browser context with random user agent.
 
         Args:
-            proxy: Proxy URL to use for this context
+            proxy: Proxy URL to use for this context (format: http://user:pass@host:port or http://host:port)
 
         Returns:
             Browser context
@@ -82,7 +82,21 @@ class PlaywrightScraper:
         }
 
         if proxy:
-            context_options['proxy'] = {'server': proxy}
+            # Parse proxy URL to extract components for Playwright
+            # Playwright requires separate server and credentials, not embedded in URL
+            parsed = urlparse(proxy)
+
+            # Build proxy config with server URL (without credentials)
+            proxy_config = {
+                'server': f'{parsed.scheme}://{parsed.hostname}:{parsed.port}'
+            }
+
+            # Add authentication credentials if present in URL
+            if parsed.username and parsed.password:
+                proxy_config['username'] = parsed.username
+                proxy_config['password'] = parsed.password
+
+            context_options['proxy'] = proxy_config
 
         return await self.browser.new_context(**context_options)
 
