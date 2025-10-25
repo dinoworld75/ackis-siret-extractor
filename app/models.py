@@ -46,6 +46,14 @@ class BatchExtractionRequest(BaseModel):
     concurrent_workers: int = Field(10, ge=1, le=50, description="Number of concurrent workers (1-50)")
     proxies: Optional[List[ProxyConfig]] = Field(None, description="Optional list of proxies for rotation")
 
+    # Configurable timeouts (in milliseconds)
+    navigation_timeout: Optional[int] = Field(20000, ge=5000, le=120000, description="Navigation timeout in ms (5s-120s, default 20s)")
+    page_load_timeout: Optional[int] = Field(10000, ge=3000, le=60000, description="Page load timeout in ms (3s-60s, default 10s)")
+
+    # Configurable retry settings
+    max_retries: Optional[int] = Field(3, ge=0, le=10, description="Maximum retry attempts (0-10, default 3)")
+    retry_delay: Optional[int] = Field(2, ge=1, le=10, description="Delay between retries in seconds (1-10s, default 2s)")
+
     @validator("urls")
     def validate_unique_urls(cls, v):
         """Ensure URLs are unique"""
@@ -61,6 +69,10 @@ class BatchExtractionRequest(BaseModel):
                     "https://example2.fr"
                 ],
                 "concurrent_workers": 10,
+                "navigation_timeout": 20000,
+                "page_load_timeout": 10000,
+                "max_retries": 3,
+                "retry_delay": 2,
                 "proxies": [
                     {
                         "host": "142.111.48.253",

@@ -186,7 +186,11 @@ async def process_batch_background(
     batch_id: str,
     urls: List[str],
     concurrent_workers: int,
-    proxy_manager: Optional[ProxyManager]
+    proxy_manager: Optional[ProxyManager],
+    navigation_timeout: Optional[int] = None,
+    page_load_timeout: Optional[int] = None,
+    max_retries: Optional[int] = None,
+    retry_delay: Optional[int] = None
 ):
     """Background task to process batch URLs"""
     state = batch_store[batch_id]
@@ -195,7 +199,14 @@ async def process_batch_background(
     semaphore = asyncio.Semaphore(concurrent_workers)
 
     # Create a SINGLE shared scraper for the entire batch (reuses browser)
-    scraper = PlaywrightScraper()
+    # Pass custom settings if provided
+    scraper = PlaywrightScraper(
+        proxy_manager=proxy_manager,
+        navigation_timeout=navigation_timeout,
+        page_load_timeout=page_load_timeout,
+        max_retries=max_retries,
+        retry_delay=retry_delay
+    )
     await scraper.start()
 
     # Pre-assign proxies to workers for consistent distribution
@@ -363,13 +374,17 @@ async def extract_batch_urls(request: BatchExtractionRequest, background_tasks: 
     else:
         logger.info("[Batch Extract] No proxies configured, using direct connection")
 
-    # Start background processing
+    # Start background processing with custom settings from request
     background_tasks.add_task(
         process_batch_background,
         batch_id,
         urls,
         concurrent_workers,
-        proxy_manager
+        proxy_manager,
+        request.navigation_timeout,
+        request.page_load_timeout,
+        request.max_retries,
+        request.retry_delay
     )
 
     return BatchStartResponse(

@@ -4,7 +4,7 @@ import asyncio
 import random
 from typing import Dict, Optional, List
 from playwright.async_api import async_playwright, Browser, BrowserContext, Page, TimeoutError as PlaywrightTimeoutError
-from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception, AsyncRetrying
 
 from app.config import settings, USER_AGENTS, SEARCH_SELECTORS, LEGAL_PATHS, MAX_LEGAL_PAGES_TO_CHECK
 from .extractors import extract_identifiers, search_in_priority_areas
@@ -48,16 +48,30 @@ def should_retry_exception(exception: Exception) -> bool:
 class PlaywrightScraper:
     """Async web scraper using Playwright for SIRET extraction"""
 
-    def __init__(self, proxy_manager: Optional[ProxyManager] = None):
+    def __init__(self, proxy_manager: Optional[ProxyManager] = None,
+                 navigation_timeout: Optional[int] = None,
+                 page_load_timeout: Optional[int] = None,
+                 max_retries: Optional[int] = None,
+                 retry_delay: Optional[int] = None):
         """
         Initialize the Playwright scraper.
 
         Args:
             proxy_manager: ProxyManager instance for proxy rotation
+            navigation_timeout: Custom navigation timeout in ms (overrides settings)
+            page_load_timeout: Custom page load timeout in ms (overrides settings)
+            max_retries: Custom max retry attempts (overrides settings)
+            retry_delay: Custom retry delay in seconds (overrides settings)
         """
         self.proxy_manager = proxy_manager or ProxyManager()
         self.browser: Optional[Browser] = None
         self.playwright = None
+
+        # Store custom settings or use defaults from config
+        self.navigation_timeout = navigation_timeout if navigation_timeout is not None else settings.navigation_timeout
+        self.page_load_timeout = page_load_timeout if page_load_timeout is not None else settings.page_load_timeout
+        self.max_retries = max_retries if max_retries is not None else settings.max_retries
+        self.retry_delay = retry_delay if retry_delay is not None else settings.retry_delay
 
     async def __aenter__(self):
         """Async context manager entry"""
@@ -176,12 +190,12 @@ class PlaywrightScraper:
         await page.goto(
             url,
             wait_until='domcontentloaded',
-            timeout=settings.navigation_timeout
+            timeout=self.navigation_timeout
         )
 
         # Wait for page to load
         try:
-            await page.wait_for_load_state('networkidle', timeout=settings.page_load_timeout)
+            await page.wait_for_load_state('networkidle', timeout=self.page_load_timeout)
         except PlaywrightTimeoutError:
             # Continue even if networkidle times out
             pass
@@ -197,12 +211,6 @@ class PlaywrightScraper:
 
         return identifiers
 
-    @retry(
-        stop=stop_after_attempt(settings.max_retries),
-        wait=wait_exponential(multiplier=settings.retry_delay, min=2, max=10),
-        retry=retry_if_exception(should_retry_exception),
-        reraise=True
-    )
     async def scrape_url(self, url: str, proxy: Optional[str] = None) -> Dict[str, Optional[str]]:
         """
         Scrape a URL and extract SIRET/SIREN/TVA numbers.
@@ -218,59 +226,67 @@ class PlaywrightScraper:
         Raises:
             Exception: If scraping fails after retries
         """
-        # Use provided proxy, or fall back to proxy_manager
-        if proxy is None and self.proxy_manager.is_enabled():
-            proxy = self.proxy_manager.get_next_proxy()
+        # Use AsyncRetrying for runtime retry configuration with instance variables
+        async for attempt in AsyncRetrying(
+            stop=stop_after_attempt(self.max_retries),
+            wait=wait_exponential(multiplier=self.retry_delay, min=2, max=10),
+            retry=retry_if_exception(should_retry_exception),
+            reraise=True
+        ):
+            with attempt:
+                # Use provided proxy, or fall back to proxy_manager
+                if proxy is None and self.proxy_manager.is_enabled():
+                    proxy = self.proxy_manager.get_next_proxy()
 
-        context = await self._create_context(proxy=proxy)
-
-        try:
-            page = await context.new_page()
-
-            # Try the main URL first
-            identifiers = await self._scrape_single_page(page, url)
-
-            # If we found identifiers, return immediately
-            if any(identifiers.values()):
-                return identifiers
-
-            # If no identifiers found, try legal pages sequentially
-            parsed_url = urlparse(url)
-            base_url = f"{parsed_url.scheme}://{parsed_url.netloc}"
-
-            pages_checked = 1
-            for legal_path in LEGAL_PATHS:
-                if pages_checked >= MAX_LEGAL_PAGES_TO_CHECK:
-                    break
-
-                legal_url = urljoin(base_url, legal_path)
+                context = await self._create_context(proxy=proxy)
 
                 try:
-                    identifiers = await self._scrape_single_page(page, legal_url)
-                    pages_checked += 1
+                    page = await context.new_page()
+
+                    # Try the main URL first
+                    identifiers = await self._scrape_single_page(page, url)
 
                     # If we found identifiers, return immediately
                     if any(identifiers.values()):
                         return identifiers
 
-                except PlaywrightTimeoutError:
-                    # Page not found or timeout, continue to next
-                    pages_checked += 1
-                    continue
-                except Exception:
-                    # Other error, continue to next
-                    pages_checked += 1
-                    continue
+                    # If no identifiers found, try legal pages sequentially
+                    parsed_url = urlparse(url)
+                    base_url = f"{parsed_url.scheme}://{parsed_url.netloc}"
 
-            # Return empty result if nothing found
-            return {
-                'siret': None,
-                'siren': None,
-                'tva': None,
-            }
+                    pages_checked = 1
+                    for legal_path in LEGAL_PATHS:
+                        if pages_checked >= MAX_LEGAL_PAGES_TO_CHECK:
+                            break
 
-        finally:
-            await context.close()
+                        legal_url = urljoin(base_url, legal_path)
+
+                        try:
+                            identifiers = await self._scrape_single_page(page, legal_url)
+                            pages_checked += 1
+
+                            # If we found identifiers, return immediately
+                            if any(identifiers.values()):
+                                return identifiers
+
+                        except PlaywrightTimeoutError:
+                            # Page not found or timeout, continue to next
+                            pages_checked += 1
+                            continue
+                        except Exception:
+                            # Other error, continue to next
+                            pages_checked += 1
+                            continue
+
+                    # Return empty result if nothing found
+                    return {
+                        'siret': None,
+                        'siren': None,
+                        'tva': None,
+                    }
+
+                finally:
+                    await context.close()
 
     async def scrape_urls(self, urls: List[str]) -> List[Dict[str, Optional[str]]]:
         """
